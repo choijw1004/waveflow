@@ -1,0 +1,926 @@
+<title>Waveflow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: full-bleed canvas carries the flowing waveform; the track header sits top-left like a track page; the transport floats at the bottom and fades out while music plays. Single dark look by design. */
+:root {
+  --bg: #060607;
+  --fg: #f2f1ef;
+  --muted: #8d8b87;
+  --faint: #55534f;
+  --line: rgba(255, 255, 255, 0.13);
+  --accent: rgb(255, 106, 31);
+  --font-display: "Pretendard", "Pretendard Variable", "Noto Sans KR", system-ui, sans-serif;
+  --font-body: "Pretendard", "Pretendard Variable", "Noto Sans KR", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+#glow {
+  position: fixed; inset: 0; pointer-events: none;
+  background: radial-gradient(55% 65% at 14% 8%, var(--glow, rgba(255, 106, 31, 0.16)), transparent 72%);
+  transition: background 1.2s ease;
+}
+#wave {
+  position: fixed; inset: 0; width: 100%; height: 100%;
+  display: block; touch-action: none; cursor: grab;
+}
+#wave.dragging { cursor: grabbing; }
+.ui {
+  position: fixed; inset: 0; pointer-events: none;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding-left: max(clamp(16px, 3vw, 44px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(16px, 3vw, 44px), env(safe-area-inset-right, 0px));
+  padding-block: calc(env(safe-area-inset-top, 0px) + clamp(16px, 3vw, 40px)) calc(env(safe-area-inset-bottom, 0px) + clamp(14px, 2.4vw, 28px));
+}
+.top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.track { display: flex; gap: clamp(14px, 2vw, 28px); align-items: center; min-width: 0; }
+#cover {
+  width: clamp(72px, 9vw, 136px); aspect-ratio: 1; max-width: 100%;
+  border-radius: 6px; object-fit: cover; flex: none;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+  background: #151517;
+}
+.meta { min-width: 0; }
+h1 {
+  margin: 0; font-family: var(--font-display);
+  font-size: clamp(26px, 4.2vw, 66px); font-weight: 800;
+  letter-spacing: -0.035em; line-height: 1.04;
+  text-wrap: balance; overflow-wrap: anywhere;
+}
+#artist { margin: 0.45em 0 0; color: var(--muted); font-size: clamp(14px, 1.35vw, 20px); font-weight: 500; }
+#source {
+  margin: 0.9em 0 0; font-family: var(--font-mono); font-size: 11px;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint);
+}
+#status {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); border: 1px solid var(--line); border-radius: 999px;
+  padding: 6px 11px; white-space: nowrap; flex: none;
+}
+.bottom { pointer-events: auto; transition: opacity 0.45s ease, transform 0.45s ease; }
+.dock { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.play {
+  width: 58px; height: 58px; border-radius: 50%; flex: none;
+  border: 1.5px solid rgba(255, 255, 255, 0.32); background: rgba(255, 255, 255, 0.04);
+  color: var(--fg); display: grid; place-items: center; cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.play:hover { border-color: var(--fg); background: rgba(255, 255, 255, 0.08); }
+.play svg { width: 22px; height: 22px; fill: currentColor; }
+.time { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); min-width: 8.5em; }
+.time #cur { color: var(--fg); }
+.styles { display: flex; flex-wrap: wrap; gap: 3px; padding: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); }
+.styles button {
+  border: 0; background: transparent; color: var(--muted); cursor: pointer;
+  font: 500 13px var(--font-body); padding: 7px 13px; border-radius: 999px;
+  display: inline-flex; gap: 7px; align-items: center; transition: color 0.2s, background 0.2s;
+}
+.styles button:hover { color: var(--fg); }
+.styles button[aria-checked="true"] { background: var(--fg); color: #0b0b0c; }
+kbd { font-family: var(--font-mono); font-size: 10px; opacity: 0.55; }
+.spacer { flex: 1; }
+.chip {
+  border: 1px solid rgba(255, 255, 255, 0.15); background: transparent; color: var(--fg);
+  font: 500 13px var(--font-body); padding: 8px 14px; border-radius: 999px; cursor: pointer;
+  display: inline-flex; gap: 8px; align-items: center; transition: border-color 0.2s;
+}
+.chip:hover { border-color: rgba(255, 255, 255, 0.45); }
+.swatch { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.hint { margin: 12px 0 0; font-family: var(--font-mono); font-size: 11px; color: var(--faint); letter-spacing: 0.02em; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+body.idle { cursor: none; }
+body.idle #wave { cursor: none; }
+body.idle .bottom { opacity: 0; transform: translateY(10px); pointer-events: none; }
+.track, #status { transition: opacity 1.4s ease, transform 1.4s ease; }
+body.idle-title .track, body.idle-title #status { opacity: 0; transform: translateY(-10px); }
+.drop {
+  position: fixed; inset: 16px; border: 1.5px dashed rgba(255, 255, 255, 0.4); border-radius: 18px;
+  display: grid; place-items: center; font-size: 20px; font-weight: 700;
+  background: rgba(6, 6, 7, 0.78); pointer-events: none;
+}
+@media (max-width: 720px) {
+  kbd, .hint { display: none; }
+  .time { min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bottom, #glow, .play, .chip, .styles button, .track, #status { transition: none; }
+}
+</style>
+
+<div id="glow"></div>
+<canvas id="wave" aria-label="흐르는 파형 비주얼라이저. 드래그해서 재생 위치를 옮길 수 있어요."></canvas>
+
+<div class="ui">
+  <div class="top">
+    <header class="track">
+      <img id="cover" alt="앨범 커버">
+      <div class="meta">
+        <h1 id="title">새벽 네 시 (Demo)</h1>
+        <p id="artist">Synth Session</p>
+        <p id="source">데모 트랙 · 이 페이지에서 합성</p>
+      </div>
+    </header>
+    <div id="status" hidden></div>
+  </div>
+
+  <div class="bottom">
+    <div class="dock">
+      <button id="play" class="play" aria-label="재생">
+        <svg id="icon-play" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg>
+        <svg id="icon-pause" viewBox="0 0 24 24" hidden><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg>
+      </button>
+      <div class="time"><span id="cur">0:00</span> / <span id="dur">0:00</span></div>
+      <div class="styles" id="styles" role="radiogroup" aria-label="파형 스타일"></div>
+      <div class="spacer"></div>
+      <button id="colorBtn" class="chip" aria-label="색상 바꾸기"><span class="swatch"></span><span id="colorName">앨범</span></button>
+      <button id="motionBtn" class="chip" aria-label="움직임 세기 바꾸기">움직임 <span id="motionName">보통</span></button>
+      <label class="chip" for="file">파일 열기<input type="file" id="file" accept="audio/*" hidden></label>
+      <button id="fsBtn" class="chip">전체화면</button>
+    </div>
+    <p class="hint">Space 재생 · 1–5 스타일 · C 색상 · M 움직임 · F 전체화면 · ←→ 5초 · +/− 확대 · 파형 드래그로 탐색 · 오디오 파일을 끌어다 놓기</p>
+  </div>
+</div>
+
+<div class="drop" id="drop" hidden>여기에 놓으면 재생 목록 대신 바로 열려요</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+<script>
+(() => {
+  const BAR_RATE = 20;          // bars per second of audio
+  const MIR = 0.42;             // reflection height ratio
+  const MODES = ["클래식", "리본", "스펙트럼", "라이브", "도트"];
+  const ACCENTS = [
+    { name: "앨범", c: [255, 106, 31], cover: true },
+    { name: "선셋", c: [255, 106, 31] },
+    { name: "화이트", c: [244, 243, 240] },
+    { name: "민트", c: [84, 226, 190] },
+    { name: "라일락", c: [176, 150, 255] },
+    { name: "체리", c: [255, 66, 96] },
+  ];
+
+  const MOTIONS = [["끔", 0], ["보통", 1], ["강하게", 1.9]];
+  const prefs = { mode: 0, accent: 0, spacing: 5, motion: 1 };
+  try { Object.assign(prefs, JSON.parse(localStorage.getItem("waveflow") || "{}")); } catch (e) {}
+  const savePrefs = () => { try { localStorage.setItem("waveflow", JSON.stringify(prefs)); } catch (e) {} };
+
+  const $ = (id) => document.getElementById(id);
+  const cv = $("wave"), g = cv.getContext("2d");
+  let W = 0, H = 0, DPR = 1;
+
+  // ---------- audio engine ----------
+  let ctx = null, gain, analyser, timeData;
+  let buffer = null, src = null, playing = false, offset = 0, startAt = 0;
+  let peaks = null, bands = null, loadToken = 0;
+
+  function ensureCtx() {
+    if (ctx) return ctx;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    gain = ctx.createGain();
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    timeData = new Float32Array(analyser.fftSize);
+    gain.connect(analyser);
+    analyser.connect(ctx.destination);
+    return ctx;
+  }
+  const now = () => (playing && ctx ? Math.min(ctx.currentTime - startAt, buffer.duration) : offset);
+
+  function play() {
+    if (!buffer) return;
+    ensureCtx();
+    if (ctx.state === "suspended") ctx.resume();
+    if (offset >= buffer.duration - 0.05) offset = 0;
+    const s = ctx.createBufferSource();
+    s.buffer = buffer;
+    s.connect(gain);
+    s.onended = () => {
+      if (src === s && playing) { playing = false; src = null; offset = buffer.duration; updatePlayUI(); poke(); }
+    };
+    s.start(0, offset);
+    src = s;
+    startAt = ctx.currentTime - offset;
+    playing = true;
+    resetLive();
+    updatePlayUI();
+    requestWake();
+    poke();
+  }
+  function pause() {
+    if (!playing) return;
+    offset = now();
+    const s = src; src = null; playing = false;
+    try { s.stop(); } catch (e) {}
+    updatePlayUI();
+    poke();
+  }
+  function toggle() { playing ? pause() : play(); }
+  function seek(t) {
+    if (!buffer) return;
+    const was = playing;
+    if (was) pause();
+    offset = Math.max(0, Math.min(buffer.duration, t));
+    resetLive();
+    if (was) play();
+  }
+
+  // ---------- analysis ----------
+  function normalize(a) {
+    const sorted = Float32Array.from(a).sort();
+    const ref = sorted[Math.floor(sorted.length * 0.985)] || 1;
+    for (let i = 0; i < a.length; i++) a[i] = Math.min(1, Math.pow(a[i] / ref, 0.78));
+    return a;
+  }
+  function rmsPeaks(buf) {
+    const n = Math.max(1, Math.ceil(buf.duration * BAR_RATE));
+    const out = new Float32Array(n);
+    const chs = [];
+    for (let c = 0; c < Math.min(2, buf.numberOfChannels); c++) chs.push(buf.getChannelData(c));
+    const per = buf.sampleRate / BAR_RATE;
+    for (let i = 0; i < n; i++) {
+      const s = Math.floor(i * per), e = Math.min(buf.length, Math.floor((i + 1) * per));
+      let sum = 0, cnt = 0;
+      for (let j = s; j < e; j += 3) {
+        let v = 0;
+        for (let c = 0; c < chs.length; c++) v += chs[c][j];
+        v /= chs.length;
+        sum += v * v; cnt++;
+      }
+      out[i] = Math.sqrt(sum / (cnt || 1));
+    }
+    return normalize(out);
+  }
+  async function bandPeaks(buf) {
+    const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const sr = 22050, len = Math.max(1, Math.ceil(buf.duration * sr));
+    const specs = [["lowpass", 220, 0.7], ["bandpass", 1300, 0.6], ["highpass", 4200, 0.7]];
+    const out = [];
+    for (const [type, f, q] of specs) {
+      const oc = new OC(1, len, sr);
+      const s = oc.createBufferSource();
+      s.buffer = buf;
+      const bq = oc.createBiquadFilter();
+      bq.type = type; bq.frequency.value = f; bq.Q.value = q;
+      s.connect(bq); bq.connect(oc.destination);
+      s.start();
+      out.push(rmsPeaks(await oc.startRendering()));
+    }
+    return out;
+  }
+
+  // ---------- live (analyser-only) history ----------
+  let liveHist = [], liveAcc = 0, liveMax = 0, liveRef = 0.08, level = 0;
+  function resetLive() { liveHist = []; liveAcc = 0; liveMax = 0; }
+  function sampleLive(dt) {
+    if (!playing || !analyser) { level *= 0.9; return; }
+    analyser.getFloatTimeDomainData(timeData);
+    let sum = 0;
+    for (let i = 0; i < timeData.length; i++) sum += timeData[i] * timeData[i];
+    const rms = Math.sqrt(sum / timeData.length);
+    liveRef = Math.max(liveRef * 0.9993, rms, 0.03);
+    const v = Math.min(1, Math.pow(rms / liveRef, 0.78));
+    level += (v - level) * 0.35;
+    liveMax = Math.max(liveMax, v);
+    liveAcc += dt;
+    const step = 1 / BAR_RATE;
+    while (liveAcc >= step) {
+      liveHist.push(liveMax);
+      liveMax = v;
+      liveAcc -= step;
+    }
+    if (liveHist.length > 4000) liveHist.splice(0, liveHist.length - 4000);
+  }
+
+  // ---------- motion: bars react to the current sound on top of the flow ----------
+  const NB = 72;
+  const bounce = new Float32Array(NB);
+  let freqData = null, motionTime = 0;
+  function sampleMotion(dt) {
+    motionTime += dt;
+    if (!playing || !analyser) { for (let k = 0; k < NB; k++) bounce[k] *= 0.9; return; }
+    if (!freqData) freqData = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(freqData);
+    const bins = freqData.length;
+    for (let k = 0; k < NB; k++) {
+      const a = Math.floor(Math.pow(k / NB, 2.2) * bins * 0.7) + 1;
+      const b = Math.max(a + 1, Math.floor(Math.pow((k + 1) / NB, 2.2) * bins * 0.7) + 1);
+      let m = 0;
+      for (let j = a; j < b; j++) m = Math.max(m, freqData[j]);
+      const v = Math.pow(m / 255, 2.2);
+      bounce[k] = v > bounce[k] ? v : bounce[k] * 0.88;
+    }
+  }
+  // extra height (px) for a bar `d` bars away from the playhead:
+  // spectrum bounce near the playhead, a ripple travelling outward, and a faint shimmer everywhere
+  function wobble(d, maxUp) {
+    const amt = MOTIONS[prefs.motion][1];
+    if (!amt) return 0;
+    const ad = Math.abs(d);
+    const spec = bounce[Math.min(NB - 1, Math.floor(ad * 0.9))] * Math.exp(-ad / 46);
+    const ripple = (Math.sin(ad * 0.32 - motionTime * 7) * 0.5 + 0.5) * Math.exp(-ad / 90);
+    const shimmer = Math.sin(d * 1.9 + motionTime * 3.1) * 0.5 + 0.5;
+    return amt * maxUp * (spec * 0.38 + level * ripple * 0.07 + level * shimmer * 0.035);
+  }
+
+  // ---------- demo track (synthesized offline) ----------
+  async function renderDemo() {
+    const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const SR = 44100, beat = 60 / 100, bar = beat * 4, BARS = 18, dur = bar * BARS + 2.5;
+    const oc = new OC(2, Math.ceil(dur * SR), SR);
+    const master = oc.createGain(); master.gain.value = 0.85;
+    const comp = oc.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 4;
+    master.connect(comp); comp.connect(oc.destination);
+    const noise = oc.createBuffer(1, SR, SR);
+    const nd = noise.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    const delay = oc.createDelay(1); delay.delayTime.value = beat * 0.75;
+    const fb = oc.createGain(); fb.gain.value = 0.33;
+    const wet = oc.createGain(); wet.gain.value = 0.35;
+    delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(master);
+
+    const env = (gn, t, a, peak, d) => {
+      gn.gain.setValueAtTime(0.0001, t);
+      gn.gain.exponentialRampToValueAtTime(peak, t + a);
+      gn.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
+    };
+    const kick = (t, v) => {
+      const o = oc.createOscillator(), gn = oc.createGain();
+      o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.13);
+      env(gn, t, 0.003, v, 0.32); o.connect(gn); gn.connect(master); o.start(t); o.stop(t + 0.4);
+    };
+    const snare = (t, v) => {
+      const s = oc.createBufferSource(); s.buffer = noise;
+      const f = oc.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 1400;
+      const gn = oc.createGain(); env(gn, t, 0.002, v, 0.17);
+      s.connect(f); f.connect(gn); gn.connect(master); s.start(t, Math.random() * 0.5, 0.25);
+      const o = oc.createOscillator(); o.type = "triangle"; o.frequency.value = 185;
+      const g2 = oc.createGain(); env(g2, t, 0.002, v * 0.6, 0.09);
+      o.connect(g2); g2.connect(master); o.start(t); o.stop(t + 0.15);
+    };
+    const hat = (t, v) => {
+      const s = oc.createBufferSource(); s.buffer = noise;
+      const f = oc.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 7500;
+      const gn = oc.createGain(); env(gn, t, 0.001, v, 0.045);
+      s.connect(f); f.connect(gn); gn.connect(master); s.start(t, Math.random() * 0.5, 0.1);
+    };
+    const bass = (t, f, d, v) => {
+      const o = oc.createOscillator(); o.type = "sawtooth"; o.frequency.value = f;
+      const lp = oc.createBiquadFilter(); lp.type = "lowpass";
+      lp.frequency.setValueAtTime(700, t); lp.frequency.exponentialRampToValueAtTime(160, t + d);
+      const gn = oc.createGain();
+      gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(v, t + 0.01);
+      gn.gain.setValueAtTime(v, t + d * 0.8); gn.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      o.connect(lp); lp.connect(gn); gn.connect(master); o.start(t); o.stop(t + d + 0.05);
+    };
+    const pad = (t, fs, d, v) => {
+      const lp = oc.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1300; lp.Q.value = 0.5;
+      const gn = oc.createGain();
+      gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(v, t + 0.6);
+      gn.gain.setValueAtTime(v, t + d - 0.3); gn.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.4);
+      lp.connect(gn); gn.connect(master);
+      for (const f of fs) for (const det of [-8, 8]) {
+        const o = oc.createOscillator(); o.type = "sawtooth"; o.frequency.value = f; o.detune.value = det;
+        o.connect(lp); o.start(t); o.stop(t + d + 0.5);
+      }
+    };
+    const pluck = (t, f, v, pan, len = 0.28) => {
+      const o = oc.createOscillator(); o.type = "square"; o.frequency.value = f;
+      const lp = oc.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2600;
+      const gn = oc.createGain(); env(gn, t, 0.004, v, len);
+      const p = oc.createStereoPanner ? oc.createStereoPanner() : null;
+      o.connect(lp); lp.connect(gn);
+      if (p) { p.pan.value = pan; gn.connect(p); p.connect(master); p.connect(delay); }
+      else { gn.connect(master); gn.connect(delay); }
+      o.start(t); o.stop(t + len + 0.05);
+    };
+
+    const chords = [[220, 261.63, 329.63], [174.61, 220, 261.63], [261.63, 329.63, 392], [196, 246.94, 293.66]];
+    const roots = [55, 43.65, 65.41, 49];
+    for (let b = 0; b < BARS; b++) {
+      const t0 = b * bar, ci = b % 4, ch = chords[ci];
+      const sec = b < 4 ? "intro" : b < 8 ? "build" : b < 14 ? "drop" : b < 16 ? "break" : "outro";
+      const lvl = sec === "outro" ? 1 - (b - 15) * 0.3 : 1;
+      pad(t0, ch, bar, (sec === "break" ? 0.1 : sec === "drop" ? 0.05 : 0.07) * lvl);
+      if (sec !== "break") {
+        for (let k = 0; k < 8; k++) {
+          const f = ch[k % 3] * (k >= 3 && k < 6 ? 4 : 2);
+          pluck(t0 + k * beat / 2, f, (sec === "intro" ? 0.045 : sec === "build" ? 0.06 : 0.08) * lvl, k % 2 ? 0.35 : -0.35);
+        }
+      } else {
+        pluck(t0, ch[2] * 2, 0.07, 0, 0.9);
+      }
+      if (sec === "build" || sec === "drop" || sec === "outro") {
+        const kv = sec === "build" ? 0.35 + (b - 4) * 0.12 : 0.9 * lvl;
+        for (let q = 0; q < 4; q++) kick(t0 + q * beat, kv);
+        for (let k = 0; k < 8; k++) hat(t0 + k * beat / 2, (k % 2 ? 0.13 : 0.06) * (sec === "build" ? 0.7 : lvl));
+      }
+      if (b === 7) for (let k = 0; k < 16; k++) snare(t0 + k * beat / 4, 0.08 + k * 0.028);
+      if (sec === "drop" || sec === "outro") {
+        snare(t0 + beat, 0.5 * lvl); snare(t0 + 3 * beat, 0.5 * lvl);
+        for (let k = 0; k < 8; k++) bass(t0 + k * beat / 2, roots[ci] * (k % 4 === 3 ? 2 : 1), beat / 2 * 0.9, 0.24 * lvl);
+      }
+      if (sec === "drop") {
+        const mel = [[0, ch[2] * 4], [1.5, ch[1] * 4], [2.5, ch[0] * 4], [3, ch[1] * 4]];
+        for (const [at, f] of mel) pluck(t0 + at * beat, f, 0.07, 0, 0.45);
+      }
+    }
+    return oc.startRendering();
+  }
+
+  // ---------- covers ----------
+  function hashHue(str) { let h = 0; for (const ch of str) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h % 360; }
+  function makeCover(hue, seed) {
+    const c = document.createElement("canvas"); c.width = c.height = 480;
+    const x = c.getContext("2d");
+    const grd = x.createLinearGradient(0, 0, 0, 480);
+    grd.addColorStop(0, `hsl(${(hue + 250) % 360} 45% 10%)`);
+    grd.addColorStop(0.62, `hsl(${(hue + 320) % 360} 55% 24%)`);
+    grd.addColorStop(1, `hsl(${hue} 90% 55%)`);
+    x.fillStyle = grd; x.fillRect(0, 0, 480, 480);
+    x.fillStyle = `hsl(${(hue + 20) % 360} 100% 70%)`;
+    x.beginPath(); x.arc(240, 330, 92, Math.PI, 0); x.fill();
+    x.fillStyle = `hsl(${(hue + 250) % 360} 45% 10%)`;
+    for (let i = 0; i < 7; i++) x.fillRect(120, 268 + i * 10 + i * i * 0.8, 240, 3 + i * 0.6);
+    let r = seed || 1;
+    const rnd = () => (r = (r * 16807) % 2147483647) / 2147483647;
+    x.fillStyle = "rgba(255,255,255,0.75)";
+    for (let i = 0; i < 40; i++) x.fillRect(rnd() * 480, rnd() * 200, 1.6, 1.6);
+    return c.toDataURL("image/png");
+  }
+  // push a cover colour into a bright, saturated range so it reads on black
+  function liftColor([r, gg, b]) {
+    r /= 255; gg /= 255; b /= 255;
+    const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b);
+    let h = 0, s = 0, l = (mx + mn) / 2;
+    if (mx !== mn) {
+      const d = mx - mn;
+      s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+      h = mx === r ? (gg - b) / d + (gg < b ? 6 : 0) : mx === gg ? (b - r) / d + 2 : (r - gg) / d + 4;
+      h /= 6;
+    }
+    if (s < 0.12) return [236, 234, 230];
+    s = Math.max(s, 0.62); l = Math.min(0.7, Math.max(0.56, l));
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+    const f = (t) => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 0.5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+    return [f(h + 1 / 3), f(h), f(h - 1 / 3)].map((v) => Math.round(v * 255));
+  }
+  function averageColor(url) {
+    return new Promise((res) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const S = 24;
+          const c = document.createElement("canvas"); c.width = c.height = S;
+          const x = c.getContext("2d"); x.drawImage(img, 0, 0, S, S);
+          const d = x.getImageData(0, 0, S, S).data;
+          let r = 0, gg = 0, b = 0, n = 0;
+          const px = [];
+          for (let i = 0; i < d.length; i += 4) {
+            const R = d[i], G2 = d[i + 1], B = d[i + 2];
+            const mx = Math.max(R, G2, B), mn = Math.min(R, G2, B);
+            if (mx + mn > 60) { r += R; gg += G2; b += B; n++; }
+            const sat = mx ? (mx - mn) / mx : 0;
+            px.push({ c: [R, G2, B], score: sat * sat * (mx / 255) });
+          }
+          px.sort((p, q) => q.score - p.score);
+          const top = px.slice(0, Math.max(4, Math.floor(px.length * 0.12)));
+          const vivid = [0, 1, 2].map((k) => top.reduce((s, p) => s + p.c[k], 0) / top.length);
+          res(n ? { avg: [r / n, gg / n, b / n], vivid: liftColor(vivid) } : null);
+        } catch (e) { res(null); }
+      };
+      img.onerror = () => res(null);
+      img.src = url;
+    });
+  }
+  async function setTrackInfo({ title, artist, source, cover }) {
+    $("title").textContent = title;
+    $("artist").textContent = artist;
+    $("source").textContent = source;
+    $("cover").src = cover;
+    const col = await averageColor(cover);
+    if (col) {
+      document.documentElement.style.setProperty("--glow", `rgba(${col.avg.map(Math.round).join(",")},0.2)`);
+      ACCENTS[0].c = col.vivid;
+      setAccent(prefs.accent);
+    }
+  }
+
+  // ---------- loading ----------
+  function status(text) {
+    const s = $("status");
+    s.textContent = text || "";
+    s.hidden = !text;
+  }
+  async function useBuffer(buf, info) {
+    const token = ++loadToken;
+    if (playing) pause();
+    buffer = buf; offset = 0; resetLive();
+    peaks = rmsPeaks(buf);
+    bands = null;
+    $("dur").textContent = fmt(buf.duration);
+    await setTrackInfo(info);
+    status("스펙트럼 분석 중");
+    try {
+      const b = await bandPeaks(buf);
+      if (token === loadToken) { bands = b; status(""); }
+    } catch (e) {
+      if (token === loadToken) status("");
+    }
+  }
+  function readTags(file) {
+    return new Promise((res) => {
+      if (!window.jsmediatags) return res({});
+      try {
+        window.jsmediatags.read(file, {
+          onSuccess: (r) => res(r.tags || {}),
+          onError: () => res({}),
+        });
+      } catch (e) { res({}); }
+    });
+  }
+  function pictureToUrl(pic) {
+    if (!pic || !pic.data) return null;
+    let s = "";
+    const d = pic.data;
+    for (let i = 0; i < d.length; i += 0x8000) s += String.fromCharCode.apply(null, d.slice(i, i + 0x8000));
+    return `data:${pic.format || "image/jpeg"};base64,${btoa(s)}`;
+  }
+  async function loadFile(file) {
+    if (!file) return;
+    if (file.type && !file.type.startsWith("audio") && !file.type.startsWith("video")) {
+      status("오디오 파일이 아니에요"); setTimeout(() => status(""), 2500); return;
+    }
+    status("파일 여는 중");
+    try {
+      ensureCtx();
+      const [arr, tags] = await Promise.all([file.arrayBuffer(), readTags(file)]);
+      const buf = await new Promise((res, rej) => {
+        const p = ctx.decodeAudioData(arr, res, rej);
+        if (p && p.then) p.then(res, rej);
+      });
+      const base = file.name.replace(/\.[^.]+$/, "");
+      const title = tags.title || base;
+      await useBuffer(buf, {
+        title,
+        artist: tags.artist || "로컬 파일",
+        source: `로컬 파일 · ${(file.name.split(".").pop() || "").toUpperCase()} · ${fmt(buf.duration)}`,
+        cover: pictureToUrl(tags.picture) || makeCover(hashHue(title), hashHue(base) + 7),
+      });
+      play();
+    } catch (e) {
+      status("이 파일은 열 수 없어요 · MP3, M4A, WAV로 시도해 보세요");
+      setTimeout(() => status(""), 4000);
+    }
+  }
+
+  // ---------- drawing ----------
+  function resize() {
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = cv.clientWidth; H = cv.clientHeight;
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+
+  function geometry() {
+    const base = Math.round(H * (W < 720 ? 0.56 : 0.6));
+    const maxUp = Math.min(H * 0.26, 280);
+    const phX = Math.round(W * (prefs.mode === 3 ? 0.68 : 0.5));
+    const sp = prefs.spacing;
+    const bw = Math.max(1.5, sp * 0.62);
+    return { base, maxUp, phX, sp, bw, pps: sp * BAR_RATE };
+  }
+
+  function visibleRange(t, G) {
+    const i0 = Math.floor((t - G.phX / G.pps) * BAR_RATE) - 2;
+    const i1 = Math.ceil((t + (W - G.phX) / G.pps) * BAR_RATE) + 2;
+    return [Math.max(0, i0), Math.min(peaks.length - 1, i1)];
+  }
+  const xOf = (i, t, G) => G.phX + (i / BAR_RATE - t) * G.pps;
+
+  function drawBars(t, G, A, dots) {
+    const [i0, i1] = visibleRange(t, G);
+    const paths = { pt: new Path2D(), pm: new Path2D(), ft: new Path2D(), fm: new Path2D() };
+    const pitch = Math.max(4, G.sp);
+    for (let i = i0; i <= i1; i++) {
+      const x = xOf(i, t, G);
+      const h = Math.max(1.5, peaks[i] * G.maxUp + wobble(i - t * BAR_RATE, G.maxUp));
+      const past = i / BAR_RATE < t;
+      const top = past ? paths.pt : paths.ft, mir = past ? paths.pm : paths.fm;
+      if (dots) {
+        const n = Math.max(1, Math.round(h / pitch)), m = Math.round(n * MIR);
+        for (let k = 0; k < n; k++) top.rect(x, G.base - (k + 1) * pitch, G.bw, G.bw);
+        for (let k = 0; k < m; k++) mir.rect(x, G.base + 3 + k * pitch, G.bw, G.bw);
+      } else {
+        top.rect(x, G.base - h, G.bw, h);
+        mir.rect(x, G.base + 2, G.bw, h * MIR);
+      }
+    }
+    g.fillStyle = rgba(A, 1); g.fill(paths.pt);
+    g.fillStyle = rgba(A, 0.26); g.fill(paths.pm);
+    g.fillStyle = "rgba(255,255,255,0.24)"; g.fill(paths.ft);
+    g.fillStyle = "rgba(255,255,255,0.07)"; g.fill(paths.fm);
+  }
+
+  function ribbonPath(pts, G, mirror) {
+    const p = new Path2D();
+    if (!pts.length) return p;
+    const y = (h) => (mirror ? G.base + 2 + h * MIR : G.base - h);
+    p.moveTo(pts[0][0], G.base);
+    p.lineTo(pts[0][0], y(pts[0][1]));
+    for (let k = 1; k < pts.length - 1; k++) {
+      const mx = (pts[k][0] + pts[k + 1][0]) / 2, my = (y(pts[k][1]) + y(pts[k + 1][1])) / 2;
+      p.quadraticCurveTo(pts[k][0], y(pts[k][1]), mx, my);
+    }
+    const last = pts[pts.length - 1];
+    p.lineTo(last[0], y(last[1]));
+    p.lineTo(last[0], G.base);
+    p.closePath();
+    return p;
+  }
+  function drawRibbon(t, G, A) {
+    const [i0, i1] = visibleRange(t, G);
+    const pts = [];
+    for (let i = i0; i <= i1; i++) {
+      const v = (peaks[i] + (peaks[i - 1] ?? peaks[i]) + (peaks[i + 1] ?? peaks[i])) / 3;
+      pts.push([xOf(i, t, G) + G.bw / 2, Math.max(1, v * G.maxUp + wobble(i - t * BAR_RATE, G.maxUp))]);
+    }
+    const top = ribbonPath(pts, G, false), mir = ribbonPath(pts, G, true);
+    const gradTop = (c, a1, a2) => {
+      const gr = g.createLinearGradient(0, G.base - G.maxUp, 0, G.base);
+      gr.addColorStop(0, rgba(c, a1)); gr.addColorStop(1, rgba(c, a2)); return gr;
+    };
+    const gradMir = (c, a) => {
+      const gr = g.createLinearGradient(0, G.base, 0, G.base + G.maxUp * MIR);
+      gr.addColorStop(0, rgba(c, a)); gr.addColorStop(1, rgba(c, 0)); return gr;
+    };
+    const W8 = [255, 255, 255];
+    g.save(); g.beginPath(); g.rect(0, 0, G.phX, H); g.clip();
+    g.fillStyle = gradTop(A, 0.95, 0.35); g.fill(top);
+    g.fillStyle = gradMir(A, 0.3); g.fill(mir);
+    g.restore();
+    g.save(); g.beginPath(); g.rect(G.phX, 0, W - G.phX, H); g.clip();
+    g.fillStyle = gradTop(W8, 0.22, 0.08); g.fill(top);
+    g.fillStyle = gradMir(W8, 0.08); g.fill(mir);
+    g.restore();
+  }
+
+  function drawSpectrum(t, G, A) {
+    if (!bands) return drawBars(t, G, A, false);
+    const [lo, mid, hi] = bands;
+    const [i0, i1] = visibleRange(t, G);
+    const cMid = mix(A, [255, 255, 255], 0.45), cHi = [255, 255, 255];
+    const P = { l: new Path2D(), m: new Path2D(), h: new Path2D(), r: new Path2D() };
+    const F = { l: new Path2D(), m: new Path2D(), h: new Path2D(), r: new Path2D() };
+    for (let i = i0; i <= i1; i++) {
+      const x = xOf(i, t, G);
+      const wb = wobble(i - t * BAR_RATE, G.maxUp);
+      const hl = Math.max(1.5, lo[i] * G.maxUp * 0.56 + wb * 0.55);
+      const hm = mid[i] * G.maxUp * 0.3 + wb * 0.3;
+      const hh = hi[i] * G.maxUp * 0.2 + wb * 0.15;
+      const S = i / BAR_RATE < t ? P : F;
+      let y = G.base - hl;
+      S.l.rect(x, y, G.bw, hl);
+      if (hm > 1) { y -= hm + 1.5; S.m.rect(x, y, G.bw, hm); }
+      if (hh > 1) { y -= hh + 1.5; S.h.rect(x, y, G.bw, hh); }
+      S.r.rect(x, G.base + 2, G.bw, (G.base - y) * MIR);
+    }
+    g.fillStyle = rgba(A, 1); g.fill(P.l);
+    g.fillStyle = rgba(cMid, 0.95); g.fill(P.m);
+    g.fillStyle = rgba(cHi, 0.85); g.fill(P.h);
+    g.fillStyle = rgba(A, 0.24); g.fill(P.r);
+    g.fillStyle = "rgba(255,255,255,0.26)"; g.fill(F.l);
+    g.fillStyle = "rgba(255,255,255,0.17)"; g.fill(F.m);
+    g.fillStyle = "rgba(255,255,255,0.11)"; g.fill(F.h);
+    g.fillStyle = "rgba(255,255,255,0.06)"; g.fill(F.r);
+  }
+
+  function drawLive(G, A) {
+    const top = new Path2D(), mir = new Path2D();
+    const frac = liveAcc * BAR_RATE;
+    const add = (x, v, d) => {
+      const h = Math.max(1.5, v * G.maxUp + wobble(d, G.maxUp));
+      top.rect(x, G.base - h, G.bw, h);
+      mir.rect(x, G.base + 2, G.bw, h * MIR);
+    };
+    if (playing) add(G.phX - G.sp * frac, level, 0);
+    for (let k = 0; k < liveHist.length; k++) {
+      const x = G.phX - (k + 1 + frac) * G.sp;
+      if (x < -G.sp) break;
+      add(x, liveHist[liveHist.length - 1 - k], k + 1);
+    }
+    g.fillStyle = rgba(A, 1); g.fill(top);
+    g.fillStyle = rgba(A, 0.26); g.fill(mir);
+    // the unknown future: a faint dotted guide
+    g.fillStyle = "rgba(255,255,255,0.14)";
+    for (let x = G.phX + 10; x < W; x += 8) g.fillRect(x, G.base - 0.5, 2, 1);
+  }
+
+  function edgeFade() {
+    g.globalCompositeOperation = "destination-in";
+    const gr = g.createLinearGradient(0, 0, W, 0);
+    gr.addColorStop(0, "rgba(0,0,0,0)");
+    gr.addColorStop(0.1, "rgba(0,0,0,1)");
+    gr.addColorStop(0.9, "rgba(0,0,0,1)");
+    gr.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.globalCompositeOperation = "source-over";
+  }
+
+  function drawOverlay(t, G, A) {
+    const topY = G.base - G.maxUp - 26, botY = G.base + G.maxUp * MIR + 18;
+    // baseline
+    g.fillStyle = "rgba(255,255,255,0.12)"; g.fillRect(0, G.base, W, 1);
+    // playhead glow
+    const r = 4 + level * 26;
+    const gl = g.createRadialGradient(G.phX, G.base, 0, G.phX, G.base, r * 3);
+    gl.addColorStop(0, rgba(A, 0.55 * (0.3 + level)));
+    gl.addColorStop(1, rgba(A, 0));
+    g.fillStyle = gl; g.fillRect(G.phX - r * 3, G.base - r * 3, r * 6, r * 6);
+    g.font = `500 13px "JetBrains Mono", ui-monospace, Menlo, monospace`;
+    g.textBaseline = "bottom";
+  }
+
+  let lastFrame = performance.now(), lastLabel = "";
+  function frame(ts) {
+    const dt = Math.min(0.1, (ts - lastFrame) / 1000);
+    lastFrame = ts;
+    sampleLive(dt);
+    sampleMotion(dt);
+    g.clearRect(0, 0, W, H);
+    const A = ACCENTS[prefs.accent].c;
+    const G = geometry();
+    if (!peaks) {
+      g.fillStyle = "rgba(255,255,255,0.12)"; g.fillRect(0, G.base, W, 1);
+      g.font = `500 13px "JetBrains Mono", ui-monospace, monospace`;
+      g.fillStyle = "rgba(255,255,255,0.5)"; g.textAlign = "center"; g.textBaseline = "bottom";
+      g.fillText("데모 트랙을 만드는 중…", W / 2, G.base - 16);
+    } else {
+      const t = now();
+      if (prefs.mode === 0) drawBars(t, G, A, false);
+      else if (prefs.mode === 1) drawRibbon(t, G, A);
+      else if (prefs.mode === 2) drawSpectrum(t, G, A);
+      else if (prefs.mode === 3) drawLive(G, A);
+      else drawBars(t, G, A, true);
+      edgeFade();
+      drawOverlay(t, G, A);
+      const label = fmt(t);
+      if (label !== lastLabel) { $("cur").textContent = label; lastLabel = label; }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- UI ----------
+  function fmt(s) {
+    s = Math.max(0, s || 0);
+    const m = Math.floor(s / 60), r = Math.floor(s % 60);
+    return `${m}:${String(r).padStart(2, "0")}`;
+  }
+  function updatePlayUI() {
+    $("icon-play").hidden = playing;
+    $("icon-pause").hidden = !playing;
+    $("play").setAttribute("aria-label", playing ? "일시정지" : "재생");
+  }
+  const stylesEl = $("styles");
+  MODES.forEach((name, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.id = `mode-${i}`;
+    b.setAttribute("role", "radio");
+    b.innerHTML = `<kbd>${i + 1}</kbd><span></span>`;
+    b.querySelector("span").textContent = name;
+    b.addEventListener("click", () => setMode(i));
+    stylesEl.appendChild(b);
+  });
+  function setMode(i) {
+    prefs.mode = i; savePrefs();
+    [...stylesEl.children].forEach((b, k) => b.setAttribute("aria-checked", String(k === i)));
+  }
+  function setAccent(i) {
+    prefs.accent = i % ACCENTS.length; savePrefs();
+    const a = ACCENTS[prefs.accent];
+    document.documentElement.style.setProperty("--accent", `rgb(${a.c.join(",")})`);
+    $("colorName").textContent = a.name;
+  }
+  function setMotion(i) {
+    prefs.motion = ((i % MOTIONS.length) + MOTIONS.length) % MOTIONS.length; savePrefs();
+    $("motionName").textContent = MOTIONS[prefs.motion][0];
+  }
+  async function toggleFullscreen() {
+    const d = document, el = d.documentElement;
+    const isFs = d.fullscreenElement || d.webkitFullscreenElement;
+    try {
+      if (isFs) await (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+      else await (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+    } catch (e) {
+      status("이 화면에서는 전체화면을 쓸 수 없어요 · 새 탭에서 열어 보세요");
+      setTimeout(() => status(""), 3500);
+    }
+  }
+  const syncFs = () => { $("fsBtn").textContent = (document.fullscreenElement || document.webkitFullscreenElement) ? "전체화면 끄기" : "전체화면"; };
+  document.addEventListener("fullscreenchange", syncFs);
+  document.addEventListener("webkitfullscreenchange", syncFs);
+
+  let wakeLock = null;
+  async function requestWake() {
+    try { if (navigator.wakeLock && !wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } } catch (e) {}
+  }
+
+  // controls hide after 2.6s of stillness; the title lingers a little longer, then fades too
+  let idleTimer = null, titleTimer = null;
+  function poke() {
+    const cl = document.body.classList;
+    cl.remove("idle", "idle-title");
+    clearTimeout(idleTimer); clearTimeout(titleTimer);
+    if (playing) {
+      idleTimer = setTimeout(() => cl.add("idle"), 2600);
+      titleTimer = setTimeout(() => cl.add("idle-title"), 6000);
+    }
+  }
+  ["mousemove", "pointerdown", "keydown", "touchstart"].forEach((ev) => window.addEventListener(ev, poke, { passive: true }));
+
+  $("play").addEventListener("click", toggle);
+  $("colorBtn").addEventListener("click", () => setAccent(prefs.accent + 1));
+  $("motionBtn").addEventListener("click", () => setMotion(prefs.motion + 1));
+  $("fsBtn").addEventListener("click", toggleFullscreen);
+  $("file").addEventListener("change", (e) => { loadFile(e.target.files[0]); e.target.value = ""; });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key;
+    if (k === " " && e.target.tagName !== "BUTTON") { e.preventDefault(); toggle(); }
+    else if (k >= "1" && k <= "5") setMode(+k - 1);
+    else if (k === "c" || k === "C") setAccent(prefs.accent + 1);
+    else if (k === "m" || k === "M") setMotion(prefs.motion + 1);
+    else if (k === "f" || k === "F") toggleFullscreen();
+    else if (k === "ArrowRight") { e.preventDefault(); seek(now() + 5); }
+    else if (k === "ArrowLeft") { e.preventDefault(); seek(now() - 5); }
+    else if (k === "+" || k === "=") { prefs.spacing = Math.min(10, prefs.spacing + 1); savePrefs(); }
+    else if (k === "-" || k === "_") { prefs.spacing = Math.max(3, prefs.spacing - 1); savePrefs(); }
+  });
+
+  // drag to scrub
+  let drag = null;
+  cv.addEventListener("pointerdown", (e) => {
+    if (!buffer) return;
+    const G = geometry();
+    drag = { x0: e.clientX, t0: now(), pps: G.pps, was: playing, moved: false };
+    if (playing) pause();
+    cv.setPointerCapture(e.pointerId);
+    cv.classList.add("dragging");
+  });
+  cv.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x0;
+    if (Math.abs(dx) > 3) drag.moved = true;
+    offset = Math.max(0, Math.min(buffer.duration, drag.t0 - dx / drag.pps));
+    resetLive();
+  });
+  const endDrag = () => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    cv.classList.remove("dragging");
+    if (d.was || !d.moved) play();
+  };
+  cv.addEventListener("pointerup", endDrag);
+  cv.addEventListener("pointercancel", endDrag);
+
+  // drag & drop files
+  let dragDepth = 0;
+  window.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; $("drop").hidden = false; });
+  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; $("drop").hidden = true; } });
+  window.addEventListener("drop", (e) => {
+    e.preventDefault(); dragDepth = 0; $("drop").hidden = true;
+    const f = e.dataTransfer && e.dataTransfer.files[0];
+    if (f) loadFile(f);
+  });
+  $("drop").textContent = "여기에 놓으면 바로 재생해요";
+
+  window.addEventListener("resize", resize);
+  resize();
+  setMode(Math.min(MODES.length - 1, Math.max(0, prefs.mode | 0)));
+  setAccent(prefs.accent | 0);
+  setMotion(prefs.motion | 0);
+  if (![3, 4, 5, 6, 7, 8, 9, 10].includes(prefs.spacing)) prefs.spacing = 5;
+  updatePlayUI();
+  requestAnimationFrame(frame);
+
+  $("cover").src = makeCover(22, 42);
+  renderDemo().then((buf) => useBuffer(buf, {
+    title: "새벽 네 시 (Demo)",
+    artist: "Synth Session",
+    source: "데모 트랙 · 이 페이지에서 합성",
+    cover: makeCover(22, 42),
+  })).catch(() => status("데모 트랙을 만들지 못했어요 · 오디오 파일을 열어 주세요"));
+})();
+</script>
