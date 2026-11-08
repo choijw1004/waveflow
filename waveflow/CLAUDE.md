@@ -13,7 +13,9 @@
 - 언어: **TypeScript**. 설정 UI가 필요할 때만 SolidJS.
 - 배포 순서: 포크에서 개발 → 내 맥에서 사용 → 완성되면 pear-devs/pear-desktop에 PR.
   PR이 안 받아들여지면 내 Homebrew tap(`brew install choijw1004/tap/waveflow`)으로 배포.
-- 코드 위치: Pear Desktop 포크의 `src/plugins/waveflow/`
+- 코드 위치: 이 레포 루트의 `src/plugins/waveflow/`(플러그인), `i18n/en.json`·`ko.json`(문구)가 원본.
+  실행·빌드는 Pear Desktop 체크아웃(`~/Desktop/pear-desktop`)에서 함: `node scripts/sync-pear.mjs`로 복사 → 거기서 `pnpm dev`
+- 테스트: `node --test tests/` (파형 기록·정규화·색 보정 로직)
 
 ## 기술 스택 (Pear Desktop v3.12.0 기준, 2026-11 확인)
 
@@ -66,6 +68,6 @@ Electron 42 · TypeScript · electron-vite / Vite · SolidJS · pnpm · electron
 4. 데모의 그리기 코드를 TS 클래스로 이식 (데이터 출처 분리)
 5. 전체화면 오버레이 + 단축키 + 자동 숨김
 6. IndexedDB 파형 캐시
-7. `pnpm build:mac`으로 .dmg 빌드
+7. `pnpm dist:mac:arm64`로 .dmg 빌드 (`build:mac` 스크립트는 없음)
 
 참고: Pear Desktop 공식 설치는 `brew install pear-devs/pear/pear-desktop`
