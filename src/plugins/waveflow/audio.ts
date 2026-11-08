@@ -27,8 +27,10 @@ export class AudioTap {
   /** Per-frequency bounce 0..1 for the motion effect. */
   readonly bounce = new Float32Array(BOUNCE_BINS);
 
-  private source: MediaElementAudioSourceNode | null = null;
+  private source: AudioNode | null = null;
   private analyser: AnalyserNode | null = null;
+  /** Context created for the captureStream fallback; closed on detach. */
+  private ownContext: AudioContext | null = null;
   private timeData = new Float32Array(2048);
   private freqData = new Float32Array(1024);
   private bandBins: [number, number][] = [];
@@ -38,11 +40,42 @@ export class AudioTap {
     return this.analyser !== null;
   }
 
+  /** Tapping Pear's shared audio graph (as opposed to the captureStream fallback). */
+  get shared() {
+    return this.attached && !this.ownContext;
+  }
+
   /** Called on every `peard:audio-can-play`; the source node is shared, so only connect once. */
   attach(context: AudioContext, source: MediaElementAudioSourceNode) {
     if (this.source === source && this.analyser) return;
     this.detach();
+    this.connect(context, source);
+  }
 
+  /**
+   * Fallback for when Pear's `peard:audio-can-play` was never sent for the current song (e.g. a
+   * paused song restored at startup): analyse a captured copy of the element's output in our
+   * own AudioContext. Replaced by the shared graph as soon as Pear's event arrives.
+   */
+  attachCapture(media: HTMLMediaElement) {
+    if (this.attached) return true;
+    try {
+      const stream = (
+        media as HTMLMediaElement & { captureStream(): MediaStream }
+      ).captureStream();
+      if (!stream.getAudioTracks().length) return false;
+      const context = new AudioContext();
+      context.resume().catch(() => {});
+      this.connect(context, context.createMediaStreamSource(stream));
+      this.ownContext = context;
+      return true;
+    } catch (err) {
+      console.warn('[waveflow] could not capture audio', err);
+      return false;
+    }
+  }
+
+  private connect(context: BaseAudioContext, source: AudioNode) {
     const analyser = context.createAnalyser();
     analyser.fftSize = 2048;
     analyser.smoothingTimeConstant = 0.8;
@@ -67,6 +100,8 @@ export class AudioTap {
         // already disconnected
       }
     }
+    this.ownContext?.close().catch(() => {});
+    this.ownContext = null;
     this.source = null;
     this.analyser = null;
   }

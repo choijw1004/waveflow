@@ -47,6 +47,8 @@ const LOAD_GRACE_MS = 2500;
 /** A first listen switches to the replay layout when the song restarts after this much was heard. */
 const PROMOTE_COVERAGE = 0.6;
 const SEEK_STEP = 5;
+/** How often to retry capturing audio when Pear's audio event hasn't arrived. */
+const CAPTURE_RETRY_MS = 3000;
 
 const OUR_KEYS = new Set([
   ' ',
@@ -135,6 +137,7 @@ export class Waveflow {
   private wave: TrackWave | null = null;
   private source: WaveSource | null = null;
   private recordAfter = 0;
+  private captureRetryAt = 0;
   private switchedAt = -Infinity;
 
   private song: SongInfo | null = null;
@@ -334,6 +337,9 @@ export class Waveflow {
     const onLoadStart = () => {
       this.recorder.reset();
       this.live.reset();
+      // a captured stream is tied to the old media; Pear's event (or a new capture) takes over
+      if (this.tap.attached && !this.tap.shared) this.tap.detach();
+      this.captureRetryAt = 0;
       // New media but the song id hasn't changed yet: hold recording until it does (or a
       // timeout passes), so the new song's intro doesn't land in the previous song's waveform.
       const now = performance.now();
@@ -525,7 +531,12 @@ export class Waveflow {
     const dt = Math.min(0.1, elapsed / 1000);
 
     this.syncTrack();
-    if (!this.tap.sample(this.isPlaying(), dt)) return;
+    const playing = this.isPlaying();
+    if (!this.tap.attached && playing && this.video && now >= this.captureRetryAt) {
+      this.captureRetryAt = now + CAPTURE_RETRY_MS;
+      this.tap.attachCapture(this.video);
+    }
+    if (!this.tap.sample(playing, dt)) return;
     this.live.push(this.tap.instant, dt);
 
     const v = this.video;
