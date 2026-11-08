@@ -1,0 +1,49 @@
+{
+  "colors": {
+    "album": "Album",
+    "cherry": "Cherry",
+    "lilac": "Lilac",
+    "mint": "Mint",
+    "sunset": "Sunset",
+    "white": "White"
+  },
+  "description": "Shows the playing song as a fullscreen, flowing SoundCloud-style waveform (press W)",
+  "menu": {
+    "cache": "Remember waveforms of played songs",
+    "clear-cache": "Clear saved waveforms",
+    "color": "Color",
+    "motion": "Motion",
+    "open": "Open Waveflow (W)",
+    "style": "Style"
+  },
+  "motions": {
+    "normal": "Normal",
+    "off": "Off",
+    "strong": "Strong"
+  },
+  "name": "Waveflow",
+  "overlay": {
+    "aria": "Flowing waveform visualizer. Drag to seek.",
+    "close": "Close",
+    "color-label": "Change color",
+    "empty": "Play a song to watch it flow",
+    "exit-fullscreen": "Exit fullscreen",
+    "fullscreen": "Fullscreen",
+    "hint": "Space play · 1–5 style · C color · M motion · F fullscreen · ←→ 5s · +/− zoom · drag the waveform to seek · W/Esc close",
+    "motion": "Motion",
+    "motion-label": "Change motion",
+    "pause": "Pause",
+    "play": "Play",
+    "source-cached": "Saved waveform · {{percent}}% collected",
+    "source-live": "First listen · collecting the waveform",
+    "styles-label": "Waveform style",
+    "waiting-audio": "Waveform starts with the next song"
+  },
+  "styles": {
+    "classic": "Classic",
+    "dots": "Dots",
+    "live": "Live",
+    "ribbon": "Ribbon",
+    "spectrum": "Spectrum"
+  }
+}
