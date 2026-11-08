@@ -1,0 +1,49 @@
+{
+  "colors": {
+    "album": "앨범",
+    "cherry": "체리",
+    "lilac": "라일락",
+    "mint": "민트",
+    "sunset": "선셋",
+    "white": "화이트"
+  },
+  "description": "재생 중인 곡을 전체화면으로 흐르는 사운드클라우드 스타일 파형으로 보여줘요 (W 키)",
+  "menu": {
+    "cache": "들은 곡의 파형 기억하기",
+    "clear-cache": "저장된 파형 지우기",
+    "color": "색상",
+    "motion": "움직임",
+    "open": "웨이브플로우 열기 (W)",
+    "style": "스타일"
+  },
+  "motions": {
+    "normal": "보통",
+    "off": "끔",
+    "strong": "강하게"
+  },
+  "name": "웨이브플로우",
+  "overlay": {
+    "aria": "흐르는 파형 비주얼라이저. 드래그해서 재생 위치를 옮길 수 있어요.",
+    "close": "닫기",
+    "color-label": "색상 바꾸기",
+    "empty": "곡을 재생하면 파형이 흘러요",
+    "exit-fullscreen": "전체화면 끄기",
+    "fullscreen": "전체화면",
+    "hint": "Space 재생 · 1–5 스타일 · C 색상 · M 움직임 · F 전체화면 · ←→ 5초 · +/− 확대 · 파형 드래그로 탐색 · W/Esc 닫기",
+    "motion": "움직임",
+    "motion-label": "움직임 세기 바꾸기",
+    "pause": "일시정지",
+    "play": "재생",
+    "source-cached": "저장된 파형 · {{percent}}% 수집",
+    "source-live": "처음 듣는 곡 · 파형 모으는 중",
+    "styles-label": "파형 스타일",
+    "waiting-audio": "다음 곡부터 파형이 나타나요"
+  },
+  "styles": {
+    "classic": "클래식",
+    "dots": "도트",
+    "live": "라이브",
+    "ribbon": "리본",
+    "spectrum": "스펙트럼"
+  }
+}
