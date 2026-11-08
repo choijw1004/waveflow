@@ -1,3 +1,9 @@
+/* While the overlay is open the page underneath must not show its scrollbar. */
+html.wf-open,
+html.wf-open body {
+  overflow: hidden !important;
+}
+
 /* Waveflow overlay. Everything is scoped under .waveflow because this sheet is adopted by the whole page. */
 .waveflow {
   --wf-bg: #060607;

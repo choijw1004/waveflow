@@ -276,6 +276,8 @@ export class Waveflow {
   open() {
     if (this.overlay.open) return;
     this.overlay.show();
+    // hide the page's own scrollbar, which would otherwise sit on top of the overlay
+    document.documentElement.classList.add('wf-open');
     this.painter.resize();
     this.painter.snap({ style: this.config.style, source: this.source });
     this.clock.t = this.video?.currentTime ?? 0;
@@ -291,6 +293,7 @@ export class Waveflow {
     }
     cancelAnimationFrame(this.raf);
     this.overlay.hide();
+    document.documentElement.classList.remove('wf-open');
     this.endDrag(false);
     this.wakeLock?.release().catch(() => {});
     this.wakeLock = null;
