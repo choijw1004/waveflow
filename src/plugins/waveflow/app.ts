@@ -587,7 +587,9 @@ export class Waveflow {
     this.overlay.setPlaying(playing);
     this.overlay.setTime(time, this.duration());
     this.overlay.setStatus(
-      this.tap.attached ? '' : t('plugins.waveflow.overlay.waiting-audio'),
+      this.tap.attached || !playing
+        ? ''
+        : t('plugins.waveflow.overlay.waiting-audio'),
     );
   };
 
