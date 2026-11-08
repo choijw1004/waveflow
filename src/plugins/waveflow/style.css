@@ -1,0 +1,303 @@
+/* Waveflow overlay. Everything is scoped under .waveflow because this sheet is adopted by the whole page. */
+.waveflow {
+  --wf-bg: #060607;
+  --wf-fg: #f2f1ef;
+  --wf-muted: #8d8b87;
+  --wf-faint: #55534f;
+  --wf-line: rgba(255, 255, 255, 0.13);
+  --wf-accent: rgb(255, 106, 31);
+  --wf-glow: rgba(255, 106, 31, 0.16);
+  --wf-font:
+    'Pretendard', 'Pretendard Variable', 'Apple SD Gothic Neo', 'Noto Sans KR',
+    system-ui, sans-serif;
+  --wf-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --wf-pad-top: clamp(16px, 3vw, 40px);
+
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  background: var(--wf-bg);
+  color: var(--wf-fg);
+  font-family: var(--wf-font);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
+  user-select: none;
+}
+.waveflow[hidden] {
+  display: none !important;
+}
+/* leave room for the macOS traffic lights unless the overlay itself is fullscreen */
+.waveflow.wf-mac:not(:fullscreen) {
+  --wf-pad-top: calc(clamp(16px, 3vw, 40px) + 26px);
+}
+
+.waveflow .wf-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    55% 65% at 14% 8%,
+    var(--wf-glow),
+    transparent 72%
+  );
+  transition: background 1.2s ease;
+}
+.waveflow .wf-wave {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+.waveflow .wf-wave.wf-dragging {
+  cursor: grabbing;
+}
+
+.waveflow .wf-ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--wf-pad-top) clamp(16px, 3vw, 44px) clamp(14px, 2.4vw, 28px);
+}
+.waveflow .wf-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.waveflow .wf-track {
+  display: flex;
+  gap: clamp(14px, 2vw, 28px);
+  align-items: center;
+  min-width: 0;
+}
+.waveflow .wf-cover {
+  width: clamp(72px, 9vw, 136px);
+  aspect-ratio: 1;
+  max-width: 100%;
+  border-radius: 6px;
+  object-fit: cover;
+  flex: none;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+  background: #151517;
+}
+.waveflow .wf-cover[hidden] {
+  display: none;
+}
+.waveflow .wf-meta {
+  min-width: 0;
+}
+.waveflow .wf-title {
+  margin: 0;
+  font-family: var(--wf-font);
+  font-size: clamp(26px, 4.2vw, 66px);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  color: var(--wf-fg);
+}
+.waveflow .wf-artist {
+  margin: 0.45em 0 0;
+  color: var(--wf-muted);
+  font-size: clamp(14px, 1.35vw, 20px);
+  font-weight: 500;
+}
+.waveflow .wf-sub {
+  margin: 0.9em 0 0;
+  font-family: var(--wf-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--wf-faint);
+}
+.waveflow .wf-status {
+  font-family: var(--wf-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--wf-muted);
+  border: 1px solid var(--wf-line);
+  border-radius: 999px;
+  padding: 6px 11px;
+  white-space: nowrap;
+  flex: none;
+}
+.waveflow .wf-status[hidden] {
+  display: none;
+}
+
+.waveflow .wf-bottom {
+  pointer-events: auto;
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease;
+}
+.waveflow .wf-dock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+.waveflow button {
+  font-family: var(--wf-font);
+}
+.waveflow .wf-play {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  flex: none;
+  border: 1.5px solid rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--wf-fg);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+.waveflow .wf-play:hover {
+  border-color: var(--wf-fg);
+  background: rgba(255, 255, 255, 0.08);
+}
+.waveflow .wf-play svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+  grid-area: 1 / 1;
+}
+.waveflow .wf-time {
+  font-family: var(--wf-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--wf-muted);
+  min-width: 8.5em;
+}
+.waveflow .wf-cur {
+  color: var(--wf-fg);
+}
+.waveflow .wf-styles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.waveflow .wf-styles button {
+  border: 0;
+  background: transparent;
+  color: var(--wf-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 13px;
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  transition:
+    color 0.2s,
+    background 0.2s;
+}
+.waveflow .wf-styles button:hover {
+  color: var(--wf-fg);
+}
+.waveflow .wf-styles button[aria-checked='true'] {
+  background: var(--wf-fg);
+  color: #0b0b0c;
+}
+.waveflow kbd {
+  font-family: var(--wf-mono);
+  font-size: 10px;
+  opacity: 0.55;
+}
+.waveflow .wf-spacer {
+  flex: 1;
+}
+.waveflow .wf-chip {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: transparent;
+  color: var(--wf-fg);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  transition: border-color 0.2s;
+}
+.waveflow .wf-chip:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+.waveflow .wf-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--wf-accent);
+}
+.waveflow .wf-hint {
+  margin: 12px 0 0;
+  font-family: var(--wf-mono);
+  font-size: 11px;
+  color: var(--wf-faint);
+  letter-spacing: 0.02em;
+}
+.waveflow :focus-visible {
+  outline: 2px solid var(--wf-accent);
+  outline-offset: 3px;
+}
+
+/* auto-hide while playing: controls first, then the title */
+.waveflow.wf-idle,
+.waveflow.wf-idle .wf-wave {
+  cursor: none;
+}
+.waveflow.wf-idle .wf-bottom {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+.waveflow .wf-track,
+.waveflow .wf-status {
+  transition:
+    opacity 1.4s ease,
+    transform 1.4s ease;
+}
+.waveflow.wf-idle-title .wf-track,
+.waveflow.wf-idle-title .wf-status {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+@media (max-width: 720px) {
+  .waveflow kbd,
+  .waveflow .wf-hint {
+    display: none;
+  }
+  .waveflow .wf-time {
+    min-width: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .waveflow .wf-bottom,
+  .waveflow .wf-glow,
+  .waveflow .wf-play,
+  .waveflow .wf-chip,
+  .waveflow .wf-styles button,
+  .waveflow .wf-track,
+  .waveflow .wf-status {
+    transition: none;
+  }
+}
