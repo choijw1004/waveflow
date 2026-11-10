@@ -1,11 +1,12 @@
-import { t } from '@/i18n';
 import { getSongInfo } from '@/providers/song-info-front';
 
 import { AudioTap } from './audio';
 import { clearWaves, loadWave, saveWave } from './cache';
 import { extractCoverColors, type CoverColors } from './color';
 import { WaveRenderer } from './draw';
+import { MusicNavigation, type BrowseDestination } from './navigation';
 import { Overlay } from './overlay';
+import { t } from './strings';
 import {
   CachedSource,
   LiveHistory,
@@ -65,6 +66,9 @@ const OUR_KEYS = new Set([
   'F',
   'w',
   'W',
+  '/',
+  'p',
+  'P',
   'Escape',
   'ArrowLeft',
   'ArrowRight',
@@ -120,6 +124,7 @@ export class Waveflow {
   private readonly ctx: RendererContext<WaveflowPluginConfig>;
   private config: WaveflowPluginConfig = defaultConfig;
   private readonly overlay: Overlay;
+  private readonly navigation: MusicNavigation;
   private readonly painter: WaveRenderer;
   private readonly tap = new AudioTap();
   private readonly live = new LiveHistory();
@@ -164,8 +169,9 @@ export class Waveflow {
       nextAccent: () => this.cycle('accent'),
       nextMotion: () => this.cycle('motion'),
       toggleFullscreen: () => this.toggleFullscreen(),
-      close: () => this.close(),
+      browse: (destination) => this.browse(destination),
     });
+    this.navigation = new MusicNavigation(() => this.open());
     this.painter = new WaveRenderer(this.overlay.canvas);
     this.applyConfig(config);
 
@@ -210,6 +216,7 @@ export class Waveflow {
     this.cleanups.length = 0;
     this.tap.detach();
     this.overlay.destroy();
+    this.navigation.destroy();
   }
 
   setApi(api: MusicPlayer) {
@@ -276,6 +283,7 @@ export class Waveflow {
   open() {
     if (this.overlay.open) return;
     this.overlay.show();
+    this.navigation.setVisible(false);
     // hide the page's own scrollbar, which would otherwise sit on top of the overlay
     document.documentElement.classList.add('wf-open');
     this.painter.resize();
@@ -293,10 +301,24 @@ export class Waveflow {
     }
     cancelAnimationFrame(this.raf);
     this.overlay.hide();
+    this.navigation.setVisible(true);
+    this.navigation.focus();
     document.documentElement.classList.remove('wf-open');
     this.endDrag(false);
     this.wakeLock?.release().catch(() => {});
     this.wakeLock = null;
+  }
+
+  private async browse(destination: BrowseDestination) {
+    if (document.fullscreenElement === this.overlay.root) {
+      try {
+        await document.exitFullscreen();
+      } catch {
+        // Browsing is still available if fullscreen has already been dismissed.
+      }
+    }
+    this.close();
+    this.navigation.browse(destination);
   }
 
   private async toggleFullscreen() {
@@ -535,7 +557,12 @@ export class Waveflow {
 
     this.syncTrack();
     const playing = this.isPlaying();
-    if (!this.tap.attached && playing && this.video && now >= this.captureRetryAt) {
+    if (
+      !this.tap.attached &&
+      playing &&
+      this.video &&
+      now >= this.captureRetryAt
+    ) {
       this.captureRetryAt = now + CAPTURE_RETRY_MS;
       this.tap.attachCapture(this.video);
     }
@@ -633,6 +660,8 @@ export class Waveflow {
     else if (k === 'm' || k === 'M') this.cycle('motion');
     else if (k === 'f' || k === 'F') this.toggleFullscreen();
     else if (k === 'w' || k === 'W') this.close();
+    else if (k === '/') this.browse('search');
+    else if (k === 'p' || k === 'P') this.browse('playlists');
     else if (k === 'Escape') {
       if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
       else this.close();

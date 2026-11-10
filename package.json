@@ -15,7 +15,7 @@
   },
   "scripts": {
     "postinstall": "pnpm install-electron",
-    "test": "pnpm test:unit",
+    "test": "pnpm test:unit && pnpm test:ui",
     "test:debug": "pnpm cross-env DEBUG=pw:*,-pw:test:protocol playwright test",
     "build": "pnpm electron-vite build",
     "vite:inspect": "pnpm clean && electron-vite build --mode development && pnpm exec serve .vite-inspect",
@@ -43,6 +43,7 @@
     "typecheck": "pnpm tsc -p tsconfig.json --noEmit",
     "check": "pnpm lint && pnpm format:check && pnpm typecheck",
     "test:unit": "node --test tests/logic.test.ts",
+    "test:ui": "node scripts/check-ui.mjs",
     "test:e2e": "pnpm build && pnpm playwright test"
   },
   "engines": {

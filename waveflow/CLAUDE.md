@@ -14,9 +14,10 @@
 - 배포 순서: 포크에서 개발 → 내 맥에서 사용 → 완성되면 pear-devs/pear-desktop에 PR.
   PR이 안 받아들여지면 내 Homebrew tap(`brew install choijw1004/tap/waveflow`)으로 배포.
 - 코드 위치: 이 레포 루트의 `src/plugins/waveflow/`(플러그인), `src/i18n/resources/en.json`·`ko.json`의 `plugins.waveflow`(문구)가 원본.
-- Pear Desktop 호스트·패키지·빌드 도구를 저장소 루트로 통합함. 이 폴더에서 `pnpm install --frozen-lockfile` → `pnpm dev`. 별도 체크아웃이나 동기화 스크립트는 사용하지 않음.
-- 이전 체크아웃은 `.local/pear-desktop-backup/`에 로컬 백업하며 Git에서 제외. 기존 Waveflow Git 이력·원격은 유지.
-- 테스트: `pnpm test` (파형 기록·정규화·색 보정), `pnpm typecheck`, `pnpm build`.
+- Pear Desktop 호스트 소스·패키지·빌드 도구를 이 저장소 루트로 통합함. 이 폴더에서 `pnpm install --frozen-lockfile` → `pnpm dev`. 외부 체크아웃이나 동기화 스크립트는 사용하지 않음.
+- 이전 외부 체크아웃은 `.local/pear-desktop-backup/`에 로컬 백업하며 Git에서 제외. `.git` 이력과 원격은 현재 Waveflow 저장소 것을 유지.
+- 테스트: `pnpm test` (파형 기록·정규화·색 보정 + UI 통합 검사). `pnpm typecheck`, `pnpm build`로 빌드 검증.
+- UI 통합 검사: `pnpm test:ui` (영어 UI·폰트 번들·자동 숨김·탐색·단축키·정리 동작)
 
 ## 기술 스택 (Pear Desktop v3.12.0 기준, 2026-11 확인)
 
@@ -42,9 +43,10 @@ Electron 42 · TypeScript · electron-vite / Vite · SolidJS · pnpm · electron
 - 움직임(끔/보통/강하게): 재생선 근처 막대가 주파수별로 튀고, 바깥으로 퍼지는 물결, 전체가 음량에 맞춰 살짝 반짝임
 - 색상: 기본은 **앨범 커버에서 추출**(채도 높은 픽셀 상위 12% 평균 → 채도·밝기 보정, 흑백 커버면 흰색). 배경 글로우는 커버 평균색. 프리셋 선셋/화이트/민트/라일락/체리
 - 재생선(세로 흰 선)과 그 위 시간 표시는 **없음**. 가로 기준선은 있음. 라이브 스타일에 LIVE 같은 텍스트 **없음**
-- 재생 중 마우스가 멈추면 하단 컨트롤 2.6초 뒤, 제목·커버 6초 뒤 페이드아웃. 움직이면 다시 표시
-- 단축키: Space 재생, 1–5 스타일, C 색상, M 움직임, F 전체화면, ←→ 5초, +/− 확대
-- 글꼴: Pretendard 우선
+- 재생 중 3초간 입력이 없으면 제목·커버·탐색 버튼·하단 컨트롤이 함께 페이드아웃. 마우스·키보드 입력 시 다시 표시. 일시정지 중이나 키보드로 컨트롤에 포커스한 동안에는 표시 유지
+- 상단 Search / Playlists / YouTube Music으로 앱을 종료하지 않고 원래 유튜브 뮤직 화면 탐색. 탐색 화면에는 Back to Waveflow 버튼 상시 표시. 재생·파형 수집은 계속됨
+- 단축키: Space 재생, 1–5 스타일, C 색상, M 움직임, F 전체화면, / 검색, P 재생목록, W 탐색/비주얼라이저 전환, Esc 전체화면 해제/탐색, ←→ 5초, +/− 확대
+- 글꼴: 번들에 포함한 Pretendard Variable (`assets/`, SIL OFL). UI 문구는 Pear 언어 설정과 관계없이 영어
 
 ## 데모와 달라지는 점 (중요)
 

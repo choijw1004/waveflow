@@ -378,8 +378,7 @@ export class WaveRenderer {
     g.fillStyle = 'rgba(255,255,255,0.12)';
     g.fillRect(0, G.base, W, 1);
     if (!f.emptyText) return;
-    g.font =
-      '500 13px "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace';
+    g.font = '500 13px "Waveflow Pretendard", Pretendard, system-ui, sans-serif';
     g.fillStyle = 'rgba(255,255,255,0.5)';
     g.textAlign = 'center';
     g.textBaseline = 'bottom';

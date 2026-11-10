@@ -1,12 +1,11 @@
-import { t } from '@/i18n';
-
+import { t } from './strings';
 import { STYLES, type RGB, type WaveStyle } from './types';
 
+import type { BrowseDestination } from './navigation';
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
-/** Controls fade out after this long without input while playing… */
-const IDLE_CONTROLS_MS = 2600;
-/** …and the title/cover a little later. */
-const IDLE_TITLE_MS = 6000;
+/** The cover, navigation and controls disappear together while playing. */
+const IDLE_MS = 3000;
 
 const el = <K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -42,7 +41,7 @@ export type OverlayHandlers = {
   nextAccent: () => void;
   nextMotion: () => void;
   toggleFullscreen: () => void;
-  close: () => void;
+  browse: (destination: BrowseDestination) => void;
 };
 
 /** The fullscreen layer: glow, canvas, track header (top-left) and the auto-hiding dock. */
@@ -50,6 +49,7 @@ export class Overlay {
   readonly root: HTMLDivElement;
   readonly canvas: HTMLCanvasElement;
 
+  private readonly ui: HTMLDivElement;
   private readonly cover: HTMLImageElement;
   private readonly title: HTMLHeadingElement;
   private readonly artist: HTMLParagraphElement;
@@ -67,7 +67,6 @@ export class Overlay {
 
   private playing = false;
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
-  private titleTimer: ReturnType<typeof setTimeout> | undefined;
   private lastCur = '';
   private lastDur = '';
 
@@ -75,7 +74,10 @@ export class Overlay {
     const root = el('div', 'waveflow');
     root.hidden = true;
     root.setAttribute('role', 'dialog');
+    root.setAttribute('aria-modal', 'true');
     root.setAttribute('aria-label', t('plugins.waveflow.name'));
+    root.lang = 'en';
+    root.tabIndex = -1;
     if (navigator.userAgent.includes('Mac')) root.classList.add('wf-mac');
     this.root = root;
 
@@ -83,7 +85,7 @@ export class Overlay {
     this.canvas = el('canvas', 'wf-wave', root);
     this.canvas.setAttribute('aria-label', t('plugins.waveflow.overlay.aria'));
 
-    const ui = el('div', 'wf-ui', root);
+    const ui = (this.ui = el('div', 'wf-ui', root));
     const top = el('div', 'wf-top', ui);
     const track = el('header', 'wf-track', top);
     this.cover = el('img', 'wf-cover', track);
@@ -93,8 +95,20 @@ export class Overlay {
     this.title = el('h1', 'wf-title', meta);
     this.artist = el('p', 'wf-artist', meta);
     this.sub = el('p', 'wf-sub', meta);
-    this.status = el('div', 'wf-status', top);
+    this.status = el('div', 'wf-status', meta);
     this.status.hidden = true;
+
+    const navigation = el('nav', 'wf-navigation', top);
+    navigation.setAttribute(
+      'aria-label',
+      t('plugins.waveflow.overlay.browse-label'),
+    );
+    for (const destination of ['search', 'playlists', 'music'] as const) {
+      const button = el('button', 'wf-chip', navigation);
+      button.type = 'button';
+      button.textContent = t(`plugins.waveflow.overlay.${destination}`);
+      button.addEventListener('click', () => handlers.browse(destination));
+    }
 
     const bottom = el('div', 'wf-bottom', ui);
     const dock = el('div', 'wf-dock', bottom);
@@ -155,17 +169,36 @@ export class Overlay {
     this.fsBtn.type = 'button';
     this.fsBtn.addEventListener('click', handlers.toggleFullscreen);
 
-    const closeBtn = el('button', 'wf-chip', dock);
-    closeBtn.type = 'button';
-    closeBtn.append(`${t('plugins.waveflow.overlay.close')} `);
-    el('kbd', undefined, closeBtn).textContent = 'Esc';
-    closeBtn.addEventListener('click', handlers.close);
-
     el('p', 'wf-hint', bottom).textContent = t('plugins.waveflow.overlay.hint');
 
-    for (const ev of ['mousemove', 'pointerdown', 'wheel'] as const) {
+    for (const ev of [
+      'pointermove',
+      'pointerdown',
+      'wheel',
+      'focusin',
+      'focusout',
+    ] as const) {
       root.addEventListener(ev, () => this.poke(), { passive: true });
     }
+    root.addEventListener('keydown', (event) => {
+      if (event.key !== 'Tab') return;
+      const buttons = [...root.querySelectorAll<HTMLButtonElement>('button')];
+      const first = buttons[0];
+      const last = buttons.at(-1);
+      if (
+        event.shiftKey &&
+        (document.activeElement === first || document.activeElement === root)
+      ) {
+        event.preventDefault();
+        last?.focus();
+      } else if (
+        !event.shiftKey &&
+        (document.activeElement === last || document.activeElement === root)
+      ) {
+        event.preventDefault();
+        first?.focus();
+      }
+    });
 
     this.setPlaying(false);
     this.syncFullscreen();
@@ -178,13 +211,13 @@ export class Overlay {
 
   show() {
     this.root.hidden = false;
+    this.root.focus({ preventScroll: true });
     this.poke();
   }
 
   hide() {
     this.root.hidden = true;
     clearTimeout(this.idleTimer);
-    clearTimeout(this.titleTimer);
   }
 
   destroy() {
@@ -192,18 +225,15 @@ export class Overlay {
     this.root.remove();
   }
 
-  /** Show everything again; while playing, fade the controls and then the title after a pause. */
+  /** Wake all chrome together and keep keyboard-focused controls visible. */
   poke() {
     const cl = this.root.classList;
-    cl.remove('wf-idle', 'wf-idle-title');
+    cl.remove('wf-idle');
     clearTimeout(this.idleTimer);
-    clearTimeout(this.titleTimer);
     if (this.playing && this.open) {
-      this.idleTimer = setTimeout(() => cl.add('wf-idle'), IDLE_CONTROLS_MS);
-      this.titleTimer = setTimeout(
-        () => cl.add('wf-idle-title'),
-        IDLE_TITLE_MS,
-      );
+      this.idleTimer = setTimeout(() => {
+        if (!this.ui.querySelector(':focus-visible')) cl.add('wf-idle');
+      }, IDLE_MS);
     }
   }
 

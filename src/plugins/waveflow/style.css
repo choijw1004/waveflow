@@ -14,9 +14,8 @@ html.wf-open body {
   --wf-accent: rgb(255, 106, 31);
   --wf-glow: rgba(255, 106, 31, 0.16);
   --wf-font:
-    'Pretendard', 'Pretendard Variable', 'Apple SD Gothic Neo', 'Noto Sans KR',
-    system-ui, sans-serif;
-  --wf-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    'Waveflow Pretendard', 'Pretendard Variable', 'Pretendard', system-ui,
+    sans-serif;
   --wf-pad-top: clamp(16px, 3vw, 40px);
 
   position: fixed;
@@ -32,6 +31,9 @@ html.wf-open body {
 }
 .waveflow[hidden] {
   display: none !important;
+}
+.waveflow:focus {
+  outline: none;
 }
 /* leave room for the macOS traffic lights unless the overlay itself is fullscreen */
 .waveflow.wf-mac:not(:fullscreen) {
@@ -70,6 +72,7 @@ html.wf-open body {
   flex-direction: column;
   justify-content: space-between;
   padding: var(--wf-pad-top) clamp(16px, 3vw, 44px) clamp(14px, 2.4vw, 28px);
+  transition: opacity 0.5s ease;
 }
 .waveflow .wf-top {
   display: flex;
@@ -82,6 +85,17 @@ html.wf-open body {
   gap: clamp(14px, 2vw, 28px);
   align-items: center;
   min-width: 0;
+}
+.waveflow .wf-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  pointer-events: auto;
+  flex: none;
+}
+.waveflow .wf-navigation .wf-chip {
+  background: rgba(6, 6, 7, 0.7);
 }
 .waveflow .wf-cover {
   width: clamp(72px, 9vw, 136px);
@@ -118,14 +132,14 @@ html.wf-open body {
 }
 .waveflow .wf-sub {
   margin: 0.9em 0 0;
-  font-family: var(--wf-mono);
+  font-family: var(--wf-font);
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--wf-faint);
 }
 .waveflow .wf-status {
-  font-family: var(--wf-mono);
+  font-family: var(--wf-font);
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -135,6 +149,8 @@ html.wf-open body {
   padding: 6px 11px;
   white-space: nowrap;
   flex: none;
+  width: fit-content;
+  margin-top: 12px;
 }
 .waveflow .wf-status[hidden] {
   display: none;
@@ -142,9 +158,6 @@ html.wf-open body {
 
 .waveflow .wf-bottom {
   pointer-events: auto;
-  transition:
-    opacity 0.45s ease,
-    transform 0.45s ease;
 }
 .waveflow .wf-dock {
   display: flex;
@@ -182,7 +195,7 @@ html.wf-open body {
   grid-area: 1 / 1;
 }
 .waveflow .wf-time {
-  font-family: var(--wf-mono);
+  font-family: var(--wf-font);
   font-variant-numeric: tabular-nums;
   font-size: 13px;
   color: var(--wf-muted);
@@ -223,7 +236,7 @@ html.wf-open body {
   color: #0b0b0c;
 }
 .waveflow kbd {
-  font-family: var(--wf-mono);
+  font-family: var(--wf-font);
   font-size: 10px;
   opacity: 0.55;
 }
@@ -255,7 +268,7 @@ html.wf-open body {
 }
 .waveflow .wf-hint {
   margin: 12px 0 0;
-  font-family: var(--wf-mono);
+  font-family: var(--wf-font);
   font-size: 11px;
   color: var(--wf-faint);
   letter-spacing: 0.02em;
@@ -265,26 +278,73 @@ html.wf-open body {
   outline-offset: 3px;
 }
 
-/* auto-hide while playing: controls first, then the title */
+/* All chrome fades on the same timer; the waveform keeps flowing. */
 .waveflow.wf-idle,
 .waveflow.wf-idle .wf-wave {
   cursor: none;
 }
-.waveflow.wf-idle .wf-bottom {
+.waveflow.wf-idle .wf-ui {
   opacity: 0;
-  transform: translateY(10px);
+}
+.waveflow.wf-idle .wf-bottom,
+.waveflow.wf-idle .wf-navigation {
   pointer-events: none;
 }
-.waveflow .wf-track,
-.waveflow .wf-status {
-  transition:
-    opacity 1.4s ease,
-    transform 1.4s ease;
+
+/* Always available over YouTube Music, clear of its bottom player bar. */
+.wf-launcher {
+  position: fixed;
+  right: 24px;
+  bottom: 112px;
+  z-index: 2147482999;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: #111113;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  color: #f2f1ef;
+  font:
+    600 13px 'Waveflow Pretendard',
+    Pretendard,
+    system-ui,
+    sans-serif;
+  line-height: 1.4;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
 }
-.waveflow.wf-idle-title .wf-track,
-.waveflow.wf-idle-title .wf-status {
-  opacity: 0;
-  transform: translateY(-10px);
+.wf-launcher::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  background:
+    linear-gradient(currentColor, currentColor) 0 center / 2px 6px no-repeat,
+    linear-gradient(currentColor, currentColor) 4px center / 2px 12px no-repeat,
+    linear-gradient(currentColor, currentColor) 8px center / 2px 16px no-repeat,
+    linear-gradient(currentColor, currentColor) 12px center / 2px 9px no-repeat;
+}
+.wf-launcher:hover {
+  background: #242427;
+  border-color: rgba(255, 255, 255, 0.6);
+}
+.wf-launcher:focus-visible {
+  outline: 2px solid #f2f1ef;
+  outline-offset: 4px;
+}
+.wf-launcher[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 1000px) {
+  .waveflow .wf-top {
+    flex-direction: column-reverse;
+    gap: 24px;
+  }
+  .waveflow .wf-navigation {
+    align-self: flex-end;
+  }
 }
 
 @media (max-width: 720px) {
@@ -297,7 +357,7 @@ html.wf-open body {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .waveflow .wf-bottom,
+  .waveflow .wf-ui,
   .waveflow .wf-glow,
   .waveflow .wf-play,
   .waveflow .wf-chip,
@@ -306,4 +366,12 @@ html.wf-open body {
   .waveflow .wf-status {
     transition: none;
   }
+}
+/* Embedded by Vite so the font also works in YouTube Music's remote page. */
+@font-face {
+  font-family: 'Waveflow Pretendard';
+  src: url('./assets/PretendardVariable.woff2?inline') format('woff2');
+  font-style: normal;
+  font-weight: 45 920;
+  font-display: swap;
 }

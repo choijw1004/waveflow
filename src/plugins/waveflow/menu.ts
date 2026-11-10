@@ -1,5 +1,4 @@
-import { t } from '@/i18n';
-
+import { t } from './strings';
 import {
   ACCENTS,
   CLEAR_CACHE_CHANNEL,
