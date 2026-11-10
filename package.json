@@ -1,13 +1,13 @@
 {
-  "name": "youtube-music",
-  "desktopName": "com.github.th-ch.youtube-music",
-  "productName": "YouTube Music",
+  "name": "waveflow",
+  "desktopName": "com.choijw1004.waveflow",
+  "productName": "Waveflow",
   "version": "3.12.0",
-  "description": "YouTube Music Desktop App - including custom plugins",
+  "description": "Waveform music player for YouTube Music",
   "main": "./dist/main/index.js",
   "type": "module",
   "license": "MIT",
-  "repository": "pear-devs/pear-desktop",
+  "repository": "choijw1004/waveflow",
   "author": {
     "name": "th-ch",
     "email": "th-ch@users.noreply.github.com",
@@ -42,7 +42,7 @@
     "release:win": "pnpm clean && pnpm build && pnpm electron-builder --win -p always",
     "typecheck": "pnpm tsc -p tsconfig.json --noEmit",
     "check": "pnpm lint && pnpm format:check && pnpm typecheck",
-    "test:unit": "node --test tests/logic.test.ts",
+    "test:unit": "node --test tests/*.test.ts",
     "test:ui": "node scripts/check-ui.mjs",
     "test:e2e": "pnpm build && pnpm playwright test"
   },

@@ -37,13 +37,14 @@ pnpm dist:mac:arm64
 - `src/plugins/waveflow/` — visualizer, navigation, audio capture, waveform recording and cache.
 - `src/i18n/resources/en.json` and `ko.json` — Waveflow strings under `plugins.waveflow`.
 - `src/`, `assets/`, `patches/`, `vite-plugins/` — the Pear Desktop host and build tooling.
-- `tests/logic.test.ts` and `scripts/check-ui.mjs` — waveform and UI checks.
+- `tests/*.test.ts` and `scripts/check-ui.mjs` — waveform, branding and UI checks.
 - `waveflow/reference/waveflow-demo.html` — original visual reference.
+- `icon/` — supplied app icons; macOS packaging uses `icon/icon.icns`.
 
 Build outputs and installed dependencies are ignored by Git. The previous external checkout is archived locally under `.local/pear-desktop-backup/` after migration and is not needed to run or build this repository.
 
 ## Upstream and licenses
 
-The host source was imported from Pear Desktop commit `3337446b448454125ad261099a25f6b10fbb8cb6` (version 3.12.0). Its MIT license is retained in [license](license). The existing player identity is preserved so settings and sign-in storage remain compatible.
+The host source was imported from Pear Desktop commit `3337446b448454125ad261099a25f6b10fbb8cb6` (version 3.12.0). Its MIT license is retained in [license](license). The app is named **Waveflow**. Existing installations reuse their previous profile to preserve sign-in, settings and saved waveforms.
 
 [Pretendard](https://github.com/orioncactus/pretendard) v1.3.9 is bundled with its [SIL Open Font License](src/plugins/waveflow/assets/Pretendard-LICENSE.txt).

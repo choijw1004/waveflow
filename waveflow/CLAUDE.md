@@ -16,6 +16,7 @@
 - 코드 위치: 이 레포 루트의 `src/plugins/waveflow/`(플러그인), `src/i18n/resources/en.json`·`ko.json`의 `plugins.waveflow`(문구)가 원본.
 - Pear Desktop 호스트 소스·패키지·빌드 도구를 이 저장소 루트로 통합함. 이 폴더에서 `pnpm install --frozen-lockfile` → `pnpm dev`. 외부 체크아웃이나 동기화 스크립트는 사용하지 않음.
 - 이전 외부 체크아웃은 `.local/pear-desktop-backup/`에 로컬 백업하며 Git에서 제외. `.git` 이력과 원격은 현재 Waveflow 저장소 것을 유지.
+- 앱·메뉴·설치 파일 이름은 **Waveflow**, 앱 ID는 `com.choijw1004.waveflow`. 기존 설치의 로그인·설정은 `src/providers/app-identity.ts`에서 이전 프로필을 연결해 유지. 이 모듈은 config store 생성보다 먼저 실행되어야 함.
 - 테스트: `pnpm test` (파형 기록·정규화·색 보정 + UI 통합 검사). `pnpm typecheck`, `pnpm build`로 빌드 검증.
 - UI 통합 검사: `pnpm test:ui` (영어 UI·폰트 번들·자동 숨김·탐색·단축키·정리 동작)
 

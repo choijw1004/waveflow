@@ -1,3 +1,5 @@
+import '../providers/app-identity';
+
 import { blockers } from '@/plugins/do-not-track/types';
 import { DefaultPresetList, type Preset } from '@/plugins/downloader/types';
 

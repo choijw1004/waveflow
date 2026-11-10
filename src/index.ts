@@ -29,6 +29,7 @@ import { parse } from 'node-html-parser';
 import { languageResources } from 'virtual:i18n';
 import { allPlugins, mainPlugins } from 'virtual:plugins';
 
+import { APPLICATION_ID, windowTitle } from '@/brand';
 import * as config from '@/config';
 import { APPLICATION_NAME, loadI18n, setLanguage, t } from '@/i18n';
 import {
@@ -130,13 +131,11 @@ if (is.linux()) {
   }
 
   // Overrides WM_CLASS for X11 to correspond to icon filename
-  app.setName(
-    'com.github.th-ch.\u0079\u006f\u0075\u0074\u0075\u0062\u0065\u002d\u006d\u0075\u0073\u0069\u0063',
-  );
+  app.setName(APPLICATION_ID);
   // for wayland
   app.commandLine.appendSwitch(
     'class',
-    'com.github.th-ch.\u0079\u006f\u0075\u0074\u0075\u0062\u0065\u002d\u006d\u0075\u0073\u0069\u0063',
+    APPLICATION_ID,
   );
 }
 
@@ -360,6 +359,7 @@ async function createMainWindow() {
 
   const electronWindowSettings: Electron.BrowserWindowConstructorOptions = {
     icon,
+    title: APPLICATION_NAME,
     width: windowSize.width,
     height: windowSize.height,
     minWidth: 325,
@@ -613,12 +613,10 @@ app.once('browser-window-created', (_event, win) => {
 
   const customWindowTitle = config.get('options.customWindowTitle');
 
-  if (customWindowTitle) {
-    win.on('page-title-updated', (event) => {
-      event.preventDefault();
-      win.setTitle(customWindowTitle);
-    });
-  }
+  win.on('page-title-updated', (event, title) => {
+    event.preventDefault();
+    win.setTitle(customWindowTitle || windowTitle(title));
+  });
 });
 
 app.on('window-all-closed', () => {
