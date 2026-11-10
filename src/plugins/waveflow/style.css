@@ -3,6 +3,10 @@ html.wf-open,
 html.wf-open body {
   overflow: hidden !important;
 }
+/* Electron drag regions receive native mouse events even through an overlay. */
+html.wf-open ytmusic-nav-bar::before {
+  -webkit-app-region: no-drag;
+}
 
 /* Waveflow overlay. Everything is scoped under .waveflow because this sheet is adopted by the whole page. */
 .waveflow {
@@ -28,6 +32,7 @@ html.wf-open body {
   -webkit-font-smoothing: antialiased;
   color-scheme: dark;
   user-select: none;
+  -webkit-app-region: no-drag;
 }
 .waveflow[hidden] {
   display: none !important;
@@ -167,6 +172,7 @@ html.wf-open body {
 }
 .waveflow button {
   font-family: var(--wf-font);
+  -webkit-app-region: no-drag;
 }
 .waveflow .wf-play {
   width: 58px;

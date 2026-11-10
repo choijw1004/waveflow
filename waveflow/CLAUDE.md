@@ -46,6 +46,7 @@ Electron 42 · TypeScript · electron-vite / Vite · SolidJS · pnpm · electron
 - 재생선(세로 흰 선)과 그 위 시간 표시는 **없음**. 가로 기준선은 있음. 라이브 스타일에 LIVE 같은 텍스트 **없음**
 - 재생 중 3초간 입력이 없으면 제목·커버·탐색 버튼·하단 컨트롤이 함께 페이드아웃. 마우스·키보드 입력 시 다시 표시. 일시정지 중이나 키보드로 컨트롤에 포커스한 동안에는 표시 유지
 - 상단 Search / Playlists / YouTube Music으로 앱을 종료하지 않고 원래 유튜브 뮤직 화면 탐색. 탐색 화면에는 Back to Waveflow 버튼 상시 표시. 재생·파형 수집은 계속됨
+- Electron의 기존 상단 창 드래그 영역이 오버레이 클릭을 가로챌 수 있어 `.waveflow`와 버튼은 `-webkit-app-region: no-drag`, 열린 동안 원래 navbar의 드래그 영역도 해제. 이 문제는 브라우저 DOM 모의 검사로 확인되지 않으므로 설치 앱에서 상단 버튼 마우스 클릭을 검증해야 함.
 - 단축키: Space 재생, 1–5 스타일, C 색상, M 움직임, F 전체화면, / 검색, P 재생목록, W 탐색/비주얼라이저 전환, Esc 전체화면 해제/탐색, ←→ 5초, +/− 확대
 - 글꼴: 번들에 포함한 Pretendard Variable (`assets/`, SIL OFL). UI 문구는 Pear 언어 설정과 관계없이 영어
 
