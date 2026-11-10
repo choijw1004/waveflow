@@ -13,9 +13,10 @@
 - 언어: **TypeScript**. 설정 UI가 필요할 때만 SolidJS.
 - 배포 순서: 포크에서 개발 → 내 맥에서 사용 → 완성되면 pear-devs/pear-desktop에 PR.
   PR이 안 받아들여지면 내 Homebrew tap(`brew install choijw1004/tap/waveflow`)으로 배포.
-- 코드 위치: 이 레포 루트의 `src/plugins/waveflow/`(플러그인), `i18n/en.json`·`ko.json`(문구)가 원본.
-  실행·빌드는 Pear Desktop 체크아웃(`~/Desktop/pear-desktop`)에서 함: `node scripts/sync-pear.mjs`로 복사 → 거기서 `pnpm dev`
-- 테스트: `node --test tests/` (파형 기록·정규화·색 보정 로직)
+- 코드 위치: 이 레포 루트의 `src/plugins/waveflow/`(플러그인), `src/i18n/resources/en.json`·`ko.json`의 `plugins.waveflow`(문구)가 원본.
+- Pear Desktop 호스트·패키지·빌드 도구를 저장소 루트로 통합함. 이 폴더에서 `pnpm install --frozen-lockfile` → `pnpm dev`. 별도 체크아웃이나 동기화 스크립트는 사용하지 않음.
+- 이전 체크아웃은 `.local/pear-desktop-backup/`에 로컬 백업하며 Git에서 제외. 기존 Waveflow Git 이력·원격은 유지.
+- 테스트: `pnpm test` (파형 기록·정규화·색 보정), `pnpm typecheck`, `pnpm build`.
 
 ## 기술 스택 (Pear Desktop v3.12.0 기준, 2026-11 확인)
 
