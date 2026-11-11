@@ -1005,9 +1005,12 @@
         "lilac": "라일락",
         "mint": "민트",
         "sunset": "선셋",
-        "white": "화이트"
+        "white": "화이트",
+        "aurora": "오로라",
+        "ocean": "오션",
+        "rainbow": "무지개"
       },
-      "description": "재생 중인 곡을 전체화면으로 흐르는 사운드클라우드 스타일 파형으로 보여줘요 (W 키)",
+      "description": "물결처럼 흐르는 파형, 아날로그 스코프와 일렁이는 고리로 음악을 느껴 보세요 (W 키)",
       "menu": {
         "cache": "들은 곡의 파형 기억하기",
         "clear-cache": "저장된 파형 지우기",
@@ -1032,10 +1035,16 @@
         "empty": "곡을 재생하면 파형이 흘러요",
         "exit-fullscreen": "전체화면 끄기",
         "fullscreen": "전체화면",
-        "hint": "Space 재생 · 1–5 스타일 · C 색상 · M 움직임 · F 전체화면 · / 검색 · P 재생목록 · ←→ 5초 · +/− 확대 · 파형 드래그로 탐색 · W/Esc 유튜브 뮤직",
+        "hint": "Space 재생 · 1–3 Flow / Scope / Orbit · 4–8 기존 스타일 · 9 / V LP · D 도트 스타일 · C 색상 · M 움직임 · F 전체화면 · / 검색 · P 재생목록 · ←→ 5초 · +/− 확대 · W/Esc 유튜브 뮤직",
         "motion": "움직임",
         "motion-label": "움직임 세기 바꾸기",
         "music": "유튜브 뮤직",
+        "other-styles": "다른 스타일",
+        "dot-styles": "도트 스타일",
+        "record-control": "LP 타임라인. 판을 돌리거나 좌우 방향키로 재생 위치를 옮길 수 있어요.",
+        "record-hint": "판을 돌려 음악을 탐색하세요 · 한 바퀴 = 30초",
+        "record-scrubbing": "탐색 중",
+        "record-turn": "판을 돌려 탐색",
         "pause": "일시정지",
         "play": "재생",
         "playlists": "재생목록",
@@ -1043,14 +1052,31 @@
         "source-cached": "저장된 파형 · {{percent}}% 수집",
         "source-live": "처음 듣는 곡 · 파형 모으는 중",
         "styles-label": "파형 스타일",
-        "waiting-audio": "다음 곡부터 파형이 나타나요"
+        "waiting-audio": "다음 곡부터 파형이 나타나요",
+        "solid-colors": "단색"
       },
       "styles": {
         "classic": "클래식",
+        "constellation": "별자리",
+        "dot-ring": "도트 헤일로",
         "dots": "도트",
+        "flow": "플로우",
         "live": "라이브",
+        "orbit": "오빗",
+        "particles": "스타더스트",
         "ribbon": "리본",
-        "spectrum": "스펙트럼"
+        "scope": "스코프",
+        "spectrum": "스펙트럼",
+        "vinyl": "바이닐"
+      },
+      "visuals": {
+        "flow": "소리가 물결이 되는 순간",
+        "constellation": "별 사이에서 찾는 나만의 리듬",
+        "dot-ring": "빛으로 이어지는 소리의 고리",
+        "orbit": "음악 주위를 천천히 도는 고리",
+        "particles": "음악이 흩어지는 작은 빛의 조각",
+        "scope": "지금 들리는 소리 그대로의 곡선",
+        "vinyl": "손끝에 닿는 음악"
       }
     }
   }

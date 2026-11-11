@@ -1005,9 +1005,12 @@
         "lilac": "Lilac",
         "mint": "Mint",
         "sunset": "Sunset",
-        "white": "White"
+        "white": "White",
+        "aurora": "Aurora",
+        "ocean": "Ocean",
+        "rainbow": "Rainbow"
       },
-      "description": "Shows the playing song as a fullscreen, flowing SoundCloud-style waveform (press W)",
+      "description": "Your music in motion. Fluid waves, an analogue scope and a living orbit (press W)",
       "menu": {
         "cache": "Remember waveforms of played songs",
         "clear-cache": "Clear saved waveforms",
@@ -1032,10 +1035,16 @@
         "empty": "Play a song to watch it flow",
         "exit-fullscreen": "Exit fullscreen",
         "fullscreen": "Fullscreen",
-        "hint": "Space play · 1–5 style · C color · M motion · F fullscreen · / search · P playlists · ←→ 5s · +/− zoom · drag to seek · W/Esc YouTube Music",
+        "hint": "Space play · 1–3 Flow / Scope / Orbit · 4–8 classics · 9 / V vinyl · D dot styles · C color · M motion · F fullscreen · / search · P playlists · ←→ 5s · +/− zoom · W/Esc YouTube Music",
         "motion": "Motion",
         "motion-label": "Change motion",
         "music": "YouTube Music",
+        "other-styles": "More styles",
+        "dot-styles": "Dot styles",
+        "record-control": "Vinyl timeline. Turn the record to seek, or use left and right arrow keys.",
+        "record-hint": "Turn the record to seek · one revolution = 30 seconds",
+        "record-scrubbing": "SCRUBBING",
+        "record-turn": "TURN TO SEEK",
         "pause": "Pause",
         "play": "Play",
         "playlists": "Playlists",
@@ -1043,14 +1052,31 @@
         "source-cached": "Saved waveform · {{percent}}% collected",
         "source-live": "First listen · collecting the waveform",
         "styles-label": "Waveform style",
-        "waiting-audio": "Waveform starts with the next song"
+        "waiting-audio": "Waveform starts with the next song",
+        "solid-colors": "Solid colors"
       },
       "styles": {
         "classic": "Classic",
+        "constellation": "Constellation",
+        "dot-ring": "Dot Halo",
         "dots": "Dots",
+        "flow": "Flow",
         "live": "Live",
+        "orbit": "Orbit",
+        "particles": "Stardust",
         "ribbon": "Ribbon",
-        "spectrum": "Spectrum"
+        "scope": "Scope",
+        "spectrum": "Spectrum",
+        "vinyl": "Vinyl"
+      },
+      "visuals": {
+        "flow": "A little sound, a little sea",
+        "constellation": "Find your rhythm in the stars",
+        "dot-ring": "Circles of sound, made of light",
+        "orbit": "A quiet orbit around your music",
+        "particles": "A thousand little pieces of the music",
+        "scope": "The shape of the sound, in real time",
+        "vinyl": "Put your hands on the music"
       }
     }
   }

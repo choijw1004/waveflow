@@ -33,8 +33,9 @@ Built on [Pear Desktop](https://github.com/pear-devs/pear-desktop), with the pla
 
 ## Features
 
-- **Five visual styles.** Switch between bars, ribbons, layered spectra, live history and dots.
-- **Colors from your album art.** Automatic cover colors, plus Sunset, White, Mint, Lilac and Cherry presets.
+- **Music you can touch.** Vinyl pairs a live waveform sleeve with a spinning record. Turn the exposed grooves to seek: one revolution moves 30 seconds, clockwise forward and counterclockwise backward.
+- **Five favorites, twelve visual styles.** Flow, Scope, Orbit, Vinyl and Stardust are always on the main selector. Flow, Scope and Orbit react to bass transients with stronger waves and rippling contours. **Dot styles** adds Stardust, Constellation and Dot Halo alongside the original Dots. Classic timeline styles remain under **More styles**.
+- **Color that flows.** Choose Album, Aurora, Sunset, Ocean or Rainbow. Multiple colors travel smoothly across the waveform while the music plays. Existing solid colors remain available. Pause or Motion Off freezes the color travel.
 - **A view that stays clear.** Cover art, track information and controls fade together after three seconds of inactivity while playing. Pointer or keyboard input brings them back; pausing keeps them visible.
 - **Browsing within reach.** Open **Search**, **Playlists** or **YouTube Music**, then return with **Back to Waveflow**. Playback and waveform collection continue while you browse.
 - **Waveforms that remember.** Save the parts you have heard locally, so repeat listens can show more of a track.
@@ -44,13 +45,100 @@ Built on [Pear Desktop](https://github.com/pear-devs/pear-desktop), with the pla
 
 | Style | Look |
 | :--- | :--- |
+| **Flow** (default) | A translucent, continuous wave shaped by the live frequency spectrum |
+| **Scope** | A softly glowing, phase-aligned audio trace on a circular grid |
+| **Orbit** | A thin, fluid ring that gently ripples with the music |
+| **Vinyl** | A live waveform jacket with a spinning, interactive record emerging from behind it |
+| **Stardust** | Flowing, layered particles shaped by the frequency spectrum |
+| **Constellation** | A field of connected stars that expands with bass transients |
+| **Dot Halo** | Seven rotating rings of dots that ripple with the music |
 | **Classic** | Vertical bars with a reflection below the baseline |
 | **Ribbon** | A continuous, flowing shape |
 | **Spectrum** | Layered bass, midrange and treble bands |
 | **Live** | A view of the audio arriving right now |
 | **Dots** | The waveform drawn as points |
 
+### See it in action
+
+Screenshots use the actual Waveflow renderer and controls with deterministic demo audio. No personal account or playlist is shown.
+
+![Flow · Aurora — Waveflow](docs/screenshots/flow.jpg)
+
+**Five main styles**
+
+Flow is the large wave above. Scope, Orbit, Vinyl and Stardust stay one click away.
+
+<table>
+  <tr>
+    <td width="50%"><strong>Scope</strong><br /><img src="docs/screenshots/scope.jpg" alt="Scope — Waveflow" width="100%" /></td>
+    <td width="50%"><strong>Orbit</strong><br /><img src="docs/screenshots/orbit.jpg" alt="Orbit — Waveflow" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>Vinyl</strong><br /><img src="docs/screenshots/vinyl.jpg" alt="Vinyl — Waveflow" width="100%" /></td>
+    <td width="50%"><strong>Stardust</strong><br /><img src="docs/screenshots/particles.jpg" alt="Stardust — Waveflow" width="100%" /></td>
+  </tr>
+</table>
+
+**Five color moods**
+
+Album follows your cover art; Aurora, Sunset, Ocean and Rainbow blend multiple colors across the wave. Select a palette directly, or press **C** to cycle colors.
+
+<table>
+  <tr>
+    <td width="50%"><strong>Album</strong><br /><img src="docs/screenshots/color-album.jpg" alt="Album — Waveflow" width="100%" /></td>
+    <td width="50%"><strong>Sunset</strong><br /><img src="docs/screenshots/color-sunset.jpg" alt="Sunset — Waveflow" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>Ocean</strong><br /><img src="docs/screenshots/color-ocean.jpg" alt="Ocean — Waveflow" width="100%" /></td>
+    <td width="50%"><strong>Rainbow</strong><br /><img src="docs/screenshots/color-rainbow.jpg" alt="Rainbow — Waveflow" width="100%" /></td>
+  </tr>
+</table>
+
+<details>
+<summary><strong>More styles</strong></summary>
+
+<table>
+  <tr>
+    <td width="50%"><strong>Constellation</strong><br /><img src="docs/screenshots/constellation.jpg" alt="Constellation — Waveflow" width="100%" /></td>
+    <td width="50%"><strong>Dot Halo</strong><br /><img src="docs/screenshots/dot-ring.jpg" alt="Dot Halo — Waveflow" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>Classic</strong><br /><img src="docs/screenshots/classic.jpg" alt="Classic — Waveflow" width="100%" /></td>
+    <td width="50%"><strong>Ribbon</strong><br /><img src="docs/screenshots/ribbon.jpg" alt="Ribbon — Waveflow" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>Spectrum</strong><br /><img src="docs/screenshots/spectrum.jpg" alt="Spectrum — Waveflow" width="100%" /></td>
+    <td width="50%"><strong>Live</strong><br /><img src="docs/screenshots/live.jpg" alt="Live — Waveflow" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>Dots</strong><br /><img src="docs/screenshots/dots.jpg" alt="Dots — Waveflow" width="100%" /></td>
+    <td></td>
+  </tr>
+</table>
+
+</details>
+
+**Immersive viewing and hands-on control**
+
+The cover and controls fade together while playing. Vinyl scrubbing keeps time visible as you turn the record; timeline modes show the waveform saved from previous listens.
+
+<table>
+  <tr>
+    <td width="50%"><strong>Immersive view</strong><br /><img src="docs/screenshots/immersive.jpg" alt="Immersive view — Waveflow" width="100%" /></td>
+    <td width="50%"><strong>Turn to seek</strong><br /><img src="docs/screenshots/vinyl-scrubbing.jpg" alt="Turn to seek — Waveflow" width="100%" /></td>
+  </tr>
+</table>
+
+<details>
+<summary><strong>Compact window</strong></summary>
+
+<img src="docs/screenshots/compact.jpg" alt="Waveflow compact window" width="390" />
+
+</details>
+
 ## Quick start
+
+**Apple Silicon Mac:** [Download the latest DMG from the repository root](https://github.com/choijw1004/waveflow/raw/refs/heads/main/Waveflow-3.12.0-arm64.dmg). The checksum is in [`Waveflow-3.12.0-arm64.dmg.sha256`](Waveflow-3.12.0-arm64.dmg.sha256).
 
 **Requirements:** Node.js 22.18+ and pnpm 11+.
 
@@ -63,9 +151,11 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-1. Sign in to YouTube Music in the app.
-2. Enable **Waveflow** from the **Plugins** menu.
+1. Open the app to start on the Waveflow visualizer.
+2. Click **YouTube Music** to sign in or **Search** to find a track.
 3. Play a track, then press **W** or click **Back to Waveflow**.
+
+Waveflow is enabled by default. If you previously turned it off, enable it again from the **Plugins** menu.
 
 Everything runs from this checkout. No separate Pear Desktop checkout or sync step is needed.
 
@@ -100,7 +190,10 @@ The current macOS package uses ad-hoc signing and has not been notarized by Appl
 | :--- | :--- |
 | <kbd>W</kbd> | Switch between Waveflow and YouTube Music |
 | <kbd>Space</kbd> | Play / pause |
-| <kbd>1</kbd>–<kbd>5</kbd> | Select a visual style |
+| <kbd>1</kbd>–<kbd>3</kbd> | Flow / Scope / Orbit |
+| <kbd>4</kbd>–<kbd>8</kbd> | Classic / Ribbon / Spectrum / Live / Dots |
+| <kbd>9</kbd> / <kbd>V</kbd> | Frequency response + interactive Vinyl |
+| <kbd>D</kbd> | Cycle Stardust / Constellation / Dot Halo / Dots |
 | <kbd>C</kbd> | Cycle colors |
 | <kbd>M</kbd> | Cycle motion intensity |
 | <kbd>F</kbd> | Toggle fullscreen |
@@ -110,6 +203,7 @@ The current macOS package uses ad-hoc signing and has not been notarized by Appl
 | <kbd>+</kbd> / <kbd>−</kbd> | Zoom in / out |
 | <kbd>Esc</kbd> | Exit fullscreen, then return to YouTube Music |
 | Drag the waveform | Seek through the track |
+| Turn the LP | Seek 30 seconds per revolution, with live time feedback |
 
 Visualizer shortcuts apply while Waveflow is open. **W** also opens it while browsing, except when you are typing in a field.
 
@@ -127,6 +221,7 @@ Seeking past a section leaves a gap until you listen to it. Waveform history can
 | Command | Purpose |
 | :--- | :--- |
 | `pnpm dev` | Run the desktop app in development mode |
+| `pnpm screenshots` | Capture all README previews with demo audio |
 | `pnpm test` | Run waveform, branding and UI integration checks |
 | `pnpm typecheck` | Check TypeScript types |
 | `pnpm build` | Build the Electron main, preload and renderer bundles |

@@ -26,6 +26,8 @@ export class AudioTap {
   level = 0;
   /** Per-frequency bounce 0..1 for the motion effect. */
   readonly bounce = new Float32Array(BOUNCE_BINS);
+  /** Phase-aligned, downsampled audio for the oscilloscope. */
+  readonly waveform = new Float32Array(256);
 
   private source: AudioNode | null = null;
   private analyser: AnalyserNode | null = null;
@@ -116,6 +118,7 @@ export class AudioTap {
       this.level *= perFrame(0.9, dt);
       const decay = perFrame(0.9, dt);
       for (let k = 0; k < BOUNCE_BINS; k++) this.bounce[k] *= decay;
+      for (let k = 0; k < this.waveform.length; k++) this.waveform[k] *= decay;
       return false;
     }
 
@@ -130,6 +133,24 @@ export class AudioTap {
     this.ref = Math.max(this.ref * perFrame(0.9993, dt), rms, 0.03);
     this.instant = Math.min(1, (rms / this.ref) ** 0.78);
     this.level += (this.instant - this.level) * (1 - perFrame(0.65, dt));
+
+    // Trigger on a rising zero crossing so the trace doesn't jump horizontally.
+    let start = 0;
+    let slope = 0;
+    for (let i = 1; i < 512; i++) {
+      const rise = this.timeData[i] - this.timeData[i - 1];
+      if (this.timeData[i - 1] <= 0 && this.timeData[i] > 0 && rise > slope) {
+        start = i;
+        slope = rise;
+      }
+    }
+    const ease = 1 - perFrame(0.7, dt);
+    for (let k = 0; k < this.waveform.length; k++) {
+      let value = 0;
+      for (let j = 0; j < 4; j++) value += this.timeData[start + (k * 4) + j];
+      const target = Math.max(-1, Math.min(1, value / (4 * this.ref * 2.5)));
+      this.waveform[k] += (target - this.waveform[k]) * ease;
+    }
 
     // bands: RMS-like amplitude from the summed power of each range
     analyser.getFloatFrequencyData(this.freqData);

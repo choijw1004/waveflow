@@ -44,6 +44,7 @@
     "check": "pnpm lint && pnpm format:check && pnpm typecheck",
     "test:unit": "node --test tests/*.test.ts",
     "test:ui": "node scripts/check-ui.mjs",
+    "screenshots": "node scripts/capture-features.mjs",
     "test:e2e": "pnpm build && pnpm playwright test"
   },
   "engines": {

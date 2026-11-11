@@ -6,6 +6,7 @@ import { extractCoverColors, type CoverColors } from './color';
 import { WaveRenderer } from './draw';
 import { MusicNavigation, type BrowseDestination } from './navigation';
 import { Overlay } from './overlay';
+import { RecordScrub } from './record-scrub';
 import { t } from './strings';
 import {
   CachedSource,
@@ -20,12 +21,16 @@ import {
   ACCENTS,
   ACCENT_RGB,
   COVER_THUMB_CHANNEL,
+  DOT_STYLES,
   MAX_SPACING,
   MIN_SPACING,
   MOTIONS,
   MOTION_AMOUNT,
   STYLES,
+  STYLE_SHORTCUTS,
   defaultConfig,
+  isFluidStyle,
+  isParticleStyle,
   type RGB,
   type WaveflowPluginConfig,
 } from './types';
@@ -53,11 +58,11 @@ const CAPTURE_RETRY_MS = 3000;
 
 const OUR_KEYS = new Set([
   ' ',
-  '1',
-  '2',
-  '3',
-  '4',
-  '5',
+  ...STYLE_SHORTCUTS.map((_, i) => String(i + 1)),
+  'v',
+  'V',
+  'd',
+  'D',
   'c',
   'C',
   'm',
@@ -95,7 +100,7 @@ const isEditable = (e: Event) => {
   );
 };
 
-/** Smooths `video.currentTime` (which can advance in steps) into a per-frame playhead. */
+/** Smooths the player's track-relative time into a per-frame playhead. */
 class MediaClock {
   t = 0;
 
@@ -111,7 +116,8 @@ class MediaClock {
   }
 }
 
-type Drag = {
+type TimelineDrag = {
+  kind: 'timeline';
   pointerId: number;
   x0: number;
   t0: number;
@@ -119,6 +125,18 @@ type Drag = {
   pps: number;
   moved: boolean;
 };
+type VinylDrag = {
+  kind: 'vinyl';
+  pointerId: number;
+  t: number;
+  cx: number;
+  cy: number;
+  radius: number;
+  scrub: RecordScrub;
+  lastSeek: number;
+  nearCenter: boolean;
+};
+type Drag = TimelineDrag | VinylDrag;
 
 export class Waveflow {
   private readonly ctx: RendererContext<WaveflowPluginConfig>;
@@ -166,7 +184,7 @@ export class Waveflow {
     this.overlay = new Overlay({
       togglePlay: () => this.togglePlay(),
       setStyle: (style) => this.update({ style }),
-      nextAccent: () => this.cycle('accent'),
+      setAccent: (accent) => this.update({ accent }),
       nextMotion: () => this.cycle('motion'),
       toggleFullscreen: () => this.toggleFullscreen(),
       browse: (destination) => this.browse(destination),
@@ -185,6 +203,7 @@ export class Waveflow {
       capture: true,
     });
     this.listen(window, 'resize', () => {
+      this.endDrag(true);
       if (this.overlay.open) this.painter.resize();
     });
     this.listen(document, 'fullscreenchange', () => {
@@ -204,6 +223,7 @@ export class Waveflow {
 
     this.sampler = setInterval(this.tick, BACKGROUND_SAMPLE_MS);
     this.saver = setInterval(() => this.persist(), SAVE_EVERY_MS);
+    this.open();
   }
 
   destroy() {
@@ -226,6 +246,7 @@ export class Waveflow {
   // ---------- config ----------
 
   applyConfig(config: WaveflowPluginConfig) {
+    if (config.style !== this.config.style) this.endDrag(true);
     this.config = {
       ...config,
       style: pick(STYLES, config.style, defaultConfig.style),
@@ -241,6 +262,7 @@ export class Waveflow {
     this.overlay.setStyle(this.config.style);
     this.overlay.setMotion(t(`plugins.waveflow.motions.${this.config.motion}`));
     this.applyAccent();
+    this.updateSub();
   }
 
   /** Apply locally right away (no IPC round trip) and persist. */
@@ -270,6 +292,7 @@ export class Waveflow {
     this.overlay.setAccent(
       t(`plugins.waveflow.colors.${this.config.accent}`),
       this.accentColor(),
+      this.config.accent,
     );
   }
 
@@ -288,7 +311,7 @@ export class Waveflow {
     document.documentElement.classList.add('wf-open');
     this.painter.resize();
     this.painter.snap({ style: this.config.style, source: this.source });
-    this.clock.t = this.video?.currentTime ?? 0;
+    this.clock.t = this.currentTime();
     this.lastFrame = performance.now();
     this.raf = requestAnimationFrame(this.frame);
     this.requestWakeLock();
@@ -380,6 +403,20 @@ export class Waveflow {
   private isPlaying() {
     const v = this.video;
     return !!v && !v.paused && !v.ended && v.readyState > 2;
+  }
+
+  /** Gapless playback can keep several songs on one media timeline. */
+  private currentTime() {
+    try {
+      const time = this.api?.getCurrentTime();
+      if (typeof time === 'number' && Number.isFinite(time) && time >= 0) {
+        return time;
+      }
+    } catch {
+      // The player API may not be ready during startup.
+    }
+    const time = this.video?.currentTime ?? 0;
+    return Number.isFinite(time) && time >= 0 ? time : 0;
   }
 
   /**
@@ -487,6 +524,8 @@ export class Waveflow {
     this.switchedAt = performance.now();
     this.recorder.reset();
     this.live.reset();
+    this.endDrag(false);
+    this.clock.t = this.currentTime();
     this.updateSub();
 
     const token = ++this.loadToken;
@@ -533,7 +572,13 @@ export class Waveflow {
   private updateSub() {
     const parts: string[] = [];
     if (this.song?.album) parts.push(this.song.album);
-    if (this.source?.kind === 'cached') {
+    if (
+      isFluidStyle(this.config.style) ||
+      isParticleStyle(this.config.style) ||
+      this.config.style === 'vinyl'
+    ) {
+      parts.push(t(`plugins.waveflow.visuals.${this.config.style}`));
+    } else if (this.source?.kind === 'cached') {
       parts.push(
         t('plugins.waveflow.overlay.source-cached', {
           percent: Math.round(this.source.coverage * 100),
@@ -573,7 +618,7 @@ export class Waveflow {
     if (this.wave && v && !v.seeking && now >= this.recordAfter) {
       this.recorder.record(
         this.wave,
-        v.currentTime,
+        this.currentTime(),
         this.tap.rms,
         this.tap.bands,
       );
@@ -588,7 +633,7 @@ export class Waveflow {
     this.tick();
     const v = this.video;
     const playing = this.isPlaying();
-    const actual = v?.currentTime ?? 0;
+    const actual = this.currentTime();
     const time = this.drag
       ? this.drag.t
       : this.clock.update(actual, playing, v?.playbackRate || 1, dt);
@@ -602,12 +647,21 @@ export class Waveflow {
         live: this.live,
         style: this.config.style,
         accent: this.accentColor(),
+        palette: this.config.accent,
         spacing: this.config.spacing,
         motion: MOTION_AMOUNT[this.config.motion],
         level: this.tap.level,
         bounce: this.tap.bounce,
+        waveform: this.tap.waveform,
         playing,
         emptyText: t('plugins.waveflow.overlay.empty'),
+        duration: this.duration(),
+        scrubbing: this.drag?.kind === 'vinyl',
+        recordHint: t(
+          this.drag?.kind === 'vinyl'
+            ? 'plugins.waveflow.overlay.record-scrubbing'
+            : 'plugins.waveflow.overlay.record-turn',
+        ),
       },
       dt,
     );
@@ -642,6 +696,13 @@ export class Waveflow {
     this.overlay.poke();
     // let a focused button inside the overlay react to Space itself
     const target = e.composedPath()[0];
+    // The style radiogroup owns its arrow keys; these should not also seek.
+    if (
+      target instanceof HTMLButtonElement &&
+      target.getAttribute('role') === 'radio' &&
+      (k === 'ArrowLeft' || k === 'ArrowRight')
+    )
+      return;
     if (
       k === ' ' &&
       target instanceof HTMLButtonElement &&
@@ -654,9 +715,15 @@ export class Waveflow {
 
     if (k === ' ') {
       if (!e.repeat) this.togglePlay();
-    } else if (k >= '1' && k <= '5')
-      this.update({ style: STYLES[Number(k) - 1] });
-    else if (k === 'c' || k === 'C') this.cycle('accent');
+    } else if (/^[1-9]$/.test(k))
+      this.update({ style: STYLE_SHORTCUTS[Number(k) - 1] });
+    else if (k === 'v' || k === 'V') this.update({ style: 'vinyl' });
+    else if (k === 'd' || k === 'D') {
+      const index = (DOT_STYLES as readonly string[]).indexOf(
+        this.config.style,
+      );
+      this.update({ style: DOT_STYLES[(index + 1) % DOT_STYLES.length] });
+    } else if (k === 'c' || k === 'C') this.cycle('accent');
     else if (k === 'm' || k === 'M') this.cycle('motion');
     else if (k === 'f' || k === 'F') this.toggleFullscreen();
     else if (k === 'w' || k === 'W') this.close();
@@ -665,10 +732,8 @@ export class Waveflow {
     else if (k === 'Escape') {
       if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
       else this.close();
-    } else if (k === 'ArrowRight')
-      this.seek((this.video?.currentTime ?? 0) + SEEK_STEP);
-    else if (k === 'ArrowLeft')
-      this.seek((this.video?.currentTime ?? 0) - SEEK_STEP);
+    } else if (k === 'ArrowRight') this.seek(this.currentTime() + SEEK_STEP);
+    else if (k === 'ArrowLeft') this.seek(this.currentTime() - SEEK_STEP);
     else if (k === '+' || k === '=') {
       this.update({ spacing: Math.min(MAX_SPACING, this.config.spacing + 1) });
     } else if (k === '-' || k === '_') {
@@ -693,13 +758,52 @@ export class Waveflow {
   private bindCanvas() {
     const canvas = this.overlay.canvas;
     canvas.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || this.drag) return;
+      if (this.config.style === 'vinyl') {
+        const rect = canvas.getBoundingClientRect();
+        const { cx, cy, radius, exposedX } = this.painter.recordGeometry();
+        const dx = e.clientX - rect.left - cx;
+        const dy = e.clientY - rect.top - cy;
+        const distance = Math.hypot(dx, dy);
+        const duration = this.duration();
+        if (
+          e.clientX - rect.left <= exposedX ||
+          distance > radius ||
+          distance < radius * 0.15 ||
+          !(duration > 0)
+        )
+          return;
+        e.preventDefault();
+        const time = this.currentTime();
+        this.drag = {
+          kind: 'vinyl',
+          pointerId: e.pointerId,
+          cx,
+          cy,
+          radius,
+          t: time,
+          scrub: new RecordScrub(
+            Math.atan2(dy, dx),
+            time,
+            this.painter.recordRotation,
+            duration,
+          ),
+          lastSeek: -Infinity,
+          nearCenter: false,
+        };
+        this.overlay.setScrubbing(true);
+        canvas.focus({ preventScroll: true });
+        canvas.setPointerCapture(e.pointerId);
+        canvas.classList.add('wf-dragging');
+        return;
+      }
       const G = this.painter.geometry({
         spacing: this.config.spacing,
         style: this.config.style,
         source: this.source,
       });
       this.drag = {
+        kind: 'timeline',
         pointerId: e.pointerId,
         x0: e.clientX,
         t0: this.clock.t,
@@ -713,13 +817,47 @@ export class Waveflow {
     canvas.addEventListener('pointermove', (e) => {
       const drag = this.drag;
       if (!drag || drag.pointerId !== e.pointerId) return;
+      if (drag.kind === 'vinyl') {
+        const rect = canvas.getBoundingClientRect();
+        const dx = e.clientX - rect.left - drag.cx;
+        const dy = e.clientY - rect.top - drag.cy;
+        if (Math.hypot(dx, dy) < drag.radius * 0.15) {
+          drag.nearCenter = true;
+          return;
+        }
+        const angle = Math.atan2(dy, dx);
+        if (drag.nearCenter) {
+          drag.nearCenter = false;
+          drag.scrub.reanchor(angle);
+          return;
+        }
+        drag.t = drag.scrub.move(angle);
+        this.painter.recordRotation = drag.scrub.rotation;
+        this.overlay.setTime(drag.t, this.duration());
+        const now = performance.now();
+        // Limit player seeks while updating the platter and time display on every input.
+        if (drag.scrub.moved && now - drag.lastSeek >= 80) {
+          this.seek(drag.t);
+          drag.lastSeek = now;
+        }
+        return;
+      }
       const dx = e.clientX - drag.x0;
       if (Math.abs(dx) > 3) drag.moved = true;
       const d = this.duration();
       drag.t = clamp(drag.t0 - (dx / drag.pps), 0, d > 0 ? d : Infinity);
     });
-    canvas.addEventListener('pointerup', () => this.endDrag(true));
-    canvas.addEventListener('pointercancel', () => this.endDrag(false));
+    canvas.addEventListener('pointerup', (e) => {
+      if (e.pointerId === this.drag?.pointerId) this.endDrag(true);
+    });
+    canvas.addEventListener('pointercancel', (e) => {
+      if (e.pointerId === this.drag?.pointerId)
+        this.endDrag(this.drag.kind === 'vinyl');
+    });
+    canvas.addEventListener('lostpointercapture', (e) => {
+      if (e.pointerId === this.drag?.pointerId)
+        this.endDrag(this.drag.kind === 'vinyl');
+    });
   }
 
   private endDrag(apply: boolean) {
@@ -727,8 +865,12 @@ export class Waveflow {
     if (!drag) return;
     this.drag = null;
     this.overlay.canvas.classList.remove('wf-dragging');
+    this.overlay.setScrubbing(false);
+    if (this.overlay.canvas.hasPointerCapture(drag.pointerId))
+      this.overlay.canvas.releasePointerCapture(drag.pointerId);
     if (!apply) return;
-    if (drag.moved) this.seek(drag.t);
+    if (drag.kind === 'vinyl' ? drag.scrub.moved : drag.moved)
+      this.seek(drag.t);
     else if (this.video?.paused) this.togglePlay();
   }
 

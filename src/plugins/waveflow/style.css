@@ -10,13 +10,13 @@ html.wf-open ytmusic-nav-bar::before {
 
 /* Waveflow overlay. Everything is scoped under .waveflow because this sheet is adopted by the whole page. */
 .waveflow {
-  --wf-bg: #060607;
+  --wf-bg: #080c0d;
   --wf-fg: #f2f1ef;
-  --wf-muted: #8d8b87;
-  --wf-faint: #55534f;
+  --wf-muted: #909d9a;
+  --wf-faint: #60716c;
   --wf-line: rgba(255, 255, 255, 0.13);
-  --wf-accent: rgb(255, 106, 31);
-  --wf-glow: rgba(255, 106, 31, 0.16);
+  --wf-accent: rgb(135, 220, 193);
+  --wf-glow: rgba(135, 220, 193, 0.09);
   --wf-font:
     'Waveflow Pretendard', 'Pretendard Variable', 'Pretendard', system-ui,
     sans-serif;
@@ -50,7 +50,7 @@ html.wf-open ytmusic-nav-bar::before {
   inset: 0;
   pointer-events: none;
   background: radial-gradient(
-    55% 65% at 14% 8%,
+    65% 75% at 50% 44%,
     var(--wf-glow),
     transparent 72%
   );
@@ -106,7 +106,7 @@ html.wf-open ytmusic-nav-bar::before {
   width: clamp(72px, 9vw, 136px);
   aspect-ratio: 1;
   max-width: 100%;
-  border-radius: 6px;
+  border-radius: 14px;
   object-fit: cover;
   flex: none;
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
@@ -122,7 +122,7 @@ html.wf-open ytmusic-nav-bar::before {
   margin: 0;
   font-family: var(--wf-font);
   font-size: clamp(26px, 4.2vw, 66px);
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: -0.035em;
   line-height: 1.04;
   text-wrap: balance;
@@ -163,24 +163,33 @@ html.wf-open ytmusic-nav-bar::before {
 
 .waveflow .wf-bottom {
   pointer-events: auto;
+  align-self: center;
+  max-width: 100%;
 }
 .waveflow .wf-dock {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 14px;
+  padding: 12px 16px;
+  border: 1px solid rgba(194, 226, 215, 0.1);
+  border-radius: 28px;
+  background: rgba(14, 21, 21, 0.78);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18);
 }
-.waveflow button {
+.waveflow button,
+.waveflow select {
   font-family: var(--wf-font);
   -webkit-app-region: no-drag;
 }
 .waveflow .wf-play {
-  width: 58px;
-  height: 58px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   flex: none;
-  border: 1.5px solid rgba(255, 255, 255, 0.32);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.035);
   color: var(--wf-fg);
   display: grid;
   place-items: center;
@@ -212,11 +221,11 @@ html.wf-open ytmusic-nav-bar::before {
 }
 .waveflow .wf-styles {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 3px;
   padding: 4px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.2);
 }
 .waveflow .wf-styles button {
   border: 0;
@@ -225,10 +234,10 @@ html.wf-open ytmusic-nav-bar::before {
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  padding: 7px 13px;
+  padding: 10px 13px;
   border-radius: 999px;
   display: inline-flex;
-  gap: 7px;
+  gap: 9px;
   align-items: center;
   transition:
     color 0.2s,
@@ -238,8 +247,45 @@ html.wf-open ytmusic-nav-bar::before {
   color: var(--wf-fg);
 }
 .waveflow .wf-styles button[aria-checked='true'] {
-  background: var(--wf-fg);
-  color: #0b0b0c;
+  background: rgba(178, 222, 206, 0.12);
+  color: var(--wf-accent);
+  box-shadow: inset 0 0 0 1px rgba(178, 222, 206, 0.14);
+}
+.waveflow .wf-styles svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.waveflow .wf-other-styles {
+  max-width: 150px;
+  min-height: 38px;
+}
+.waveflow .wf-dot-styles {
+  max-width: 155px;
+  min-height: 38px;
+}
+.waveflow .wf-other-styles option,
+.waveflow .wf-dot-styles option {
+  background: #111a19;
+  color: var(--wf-fg);
+}
+.waveflow .wf-other-styles.wf-selected,
+.waveflow .wf-dot-styles.wf-selected {
+  color: var(--wf-accent);
+  border-color: var(--wf-accent);
+}
+.waveflow[data-style='vinyl'] .wf-wave {
+  cursor: grab;
+}
+.waveflow[data-style='vinyl'].wf-scrubbing .wf-wave {
+  cursor: grabbing;
+}
+.waveflow.wf-scrubbing .wf-dock {
+  border-color: var(--wf-accent);
 }
 .waveflow kbd {
   font-family: var(--wf-font);
@@ -270,7 +316,7 @@ html.wf-open ytmusic-nav-bar::before {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--wf-accent);
+  background: var(--wf-swatch, var(--wf-accent));
 }
 .waveflow .wf-hint {
   margin: 12px 0 0;
@@ -278,6 +324,8 @@ html.wf-open ytmusic-nav-bar::before {
   font-size: 11px;
   color: var(--wf-faint);
   letter-spacing: 0.02em;
+  text-align: center;
+  text-wrap: balance;
 }
 .waveflow :focus-visible {
   outline: 2px solid var(--wf-accent);
@@ -361,6 +409,35 @@ html.wf-open ytmusic-nav-bar::before {
   .waveflow .wf-time {
     min-width: 0;
   }
+  .waveflow .wf-dock {
+    justify-content: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 22px;
+  }
+  .waveflow .wf-styles {
+    order: -2;
+    justify-content: center;
+    flex: 1 1 100%;
+  }
+  .waveflow .wf-styles button {
+    flex: 1;
+    justify-content: center;
+    padding: 8px;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .waveflow .wf-styles svg {
+    width: 19px;
+    height: 19px;
+  }
+  .waveflow .wf-spacer {
+    display: none;
+  }
+  .waveflow .wf-chip {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .waveflow .wf-ui,
@@ -380,4 +457,48 @@ html.wf-open ytmusic-nav-bar::before {
   font-style: normal;
   font-weight: 45 920;
   font-display: swap;
+}
+
+.waveflow .wf-palette {
+  padding: 0 12px;
+  gap: 9px;
+}
+.waveflow .wf-palette .wf-swatch {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+.waveflow .wf-color-select {
+  border: 0;
+  background: transparent;
+  color: var(--wf-fg);
+  font-size: 13px;
+  padding: 10px 0;
+  cursor: pointer;
+  max-width: 116px;
+}
+.waveflow .wf-color-select option,
+.waveflow .wf-color-select optgroup {
+  background: #111a19;
+  color: var(--wf-fg);
+}
+
+/* Keep five primary modes together, with a second row of everyday controls. */
+.waveflow .wf-dock {
+  max-width: 1100px;
+  justify-content: center;
+}
+.waveflow .wf-styles {
+  order: -1;
+  flex: 1 1 100%;
+  justify-content: center;
+  background: transparent;
+}
+.waveflow .wf-spacer {
+  display: none;
+}
+@media (max-width: 720px) {
+  .waveflow .wf-styles svg {
+    display: none;
+  }
 }

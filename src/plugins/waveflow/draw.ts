@@ -1,13 +1,17 @@
 import { BOUNCE_BINS } from './audio';
+import { FluidRenderer } from './fluid';
+import { paletteColor, palettePaint, type PaletteFrame } from './palette';
+import { ParticleRenderer } from './particles';
+import { recordGeometry } from './record-scrub';
 import { BAR_RATE, type LiveHistory, type WaveSource } from './track';
-
-import type { RGB, WaveStyle } from './types';
+import { isFluidStyle, isParticleStyle, type RGB, type WaveStyle } from './types';
+import { VinylRenderer } from './vinyl';
 
 /** Reflection height relative to the bar above the baseline. */
 const MIR = 0.42;
 const WHITE: RGB = [255, 255, 255];
 
-export type Frame = {
+export type Frame = PaletteFrame & {
   /** Playhead position in seconds. */
   t: number;
   source: WaveSource | null;
@@ -19,9 +23,13 @@ export type Frame = {
   motion: number;
   level: number;
   bounce: Float32Array;
+  waveform: Float32Array;
   playing: boolean;
   /** Shown above the baseline when there is nothing to draw yet. */
   emptyText: string;
+  duration?: number;
+  scrubbing?: boolean;
+  recordHint?: string;
 };
 
 export type Geometry = {
@@ -35,8 +43,6 @@ export type Geometry = {
 };
 
 const rgba = (c: RGB, a: number) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
-const mix = (a: RGB, b: RGB, t: number) =>
-  a.map((v, i) => Math.round(v + ((b[i] - v) * t))) as RGB;
 
 /** Playhead position as a fraction of the width. */
 const playheadRatio = (f: Pick<Frame, 'style' | 'source'>) => {
@@ -52,15 +58,36 @@ export class WaveRenderer {
   private H = 0;
   private ratio = 0.5;
   private motionTime = 0;
+  private colorPhase = 0;
+  private palette: PaletteFrame = { accent: [135, 220, 193] };
+  private readonly reduced = window.matchMedia(
+    '(prefers-reduced-motion: reduce)',
+  );
   private motion = 1;
   private bounce: Float32Array = new Float32Array(BOUNCE_BINS);
   private level = 0;
+  private readonly fluid: FluidRenderer;
+  private readonly particles: ParticleRenderer;
+  private readonly vinyl: VinylRenderer;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const g = canvas.getContext('2d');
     if (!g) throw new Error('[waveflow] canvas 2d context unavailable');
     this.g = g;
+    this.fluid = new FluidRenderer(g);
+    this.particles = new ParticleRenderer(g);
+    this.vinyl = new VinylRenderer(g);
+  }
+
+  get recordRotation() {
+    return this.vinyl.rotation;
+  }
+  set recordRotation(angle: number) {
+    this.vinyl.rotation = angle;
+  }
+  recordGeometry() {
+    return recordGeometry(this.W, this.H);
   }
 
   resize() {
@@ -77,7 +104,7 @@ export class WaveRenderer {
     const sp = f.spacing;
     return {
       base: Math.round(H * (W < 720 ? 0.56 : 0.6)),
-      maxUp: Math.min(H * 0.26, 280),
+      maxUp: Math.min(H * 0.34, 390),
       phX: Math.round(W * this.ratio),
       sp,
       bw: Math.max(1.5, sp * 0.62),
@@ -92,7 +119,14 @@ export class WaveRenderer {
 
   render(f: Frame, dt: number) {
     const { g, W, H } = this;
-    this.motionTime += dt;
+    const motion = this.reduced.matches ? 0 : f.motion;
+    if (f.playing && motion > 0) {
+      this.motionTime += dt * (0.9 + (motion * 0.25));
+      this.colorPhase += dt * (0.035 + (motion * 0.015));
+    }
+    f = { ...f, motion, colorPhase: this.colorPhase };
+    this.palette = f;
+    f = { ...f, accent: paletteColor(f, 0.25) };
     this.motion = f.motion;
     this.bounce = f.bounce;
     this.level = f.level;
@@ -100,19 +134,44 @@ export class WaveRenderer {
     this.ratio += (playheadRatio(f) - this.ratio) * (1 - (0.9 ** (dt * 60)));
 
     g.clearRect(0, 0, W, H);
+    if (f.style === 'vinyl') {
+      this.vinyl.render(W, H, f, dt);
+      return;
+    }
+    if (isParticleStyle(f.style)) {
+      this.particles.render(W, H, f, dt);
+      return;
+    }
+    if (isFluidStyle(f.style)) {
+      this.fluid.render(W, H, f, dt);
+      return;
+    }
     const G = this.geometry(f);
     const A = f.accent;
     const src = f.source;
 
     if (f.style === 'live' || !src) {
       if (!f.live.values.length && !f.playing) return this.drawEmpty(G, f);
-      this.drawLive(G, A, f.live, f.playing);
+      this.drawLive(G, f.live, f.playing);
     } else if (f.style === 'ribbon') this.drawRibbon(f.t, G, A, src);
-    else if (f.style === 'spectrum') this.drawSpectrum(f.t, G, A, src);
-    else this.drawBars(f.t, G, A, src, f.style === 'dots');
+    else if (f.style === 'spectrum') this.drawSpectrum(f.t, G, src);
+    else this.drawBars(f.t, G, src, f.style === 'dots');
 
     this.edgeFade();
     this.drawOverlay(G, A);
+  }
+
+  private ink(alpha: number, lift = 0) {
+    return palettePaint(
+      this.g,
+      this.palette,
+      0,
+      this.H * 0.25,
+      this.W,
+      this.H * 0.75,
+      alpha,
+      lift,
+    );
   }
 
   // extra height (px) for a bar `d` bars away from the playhead: spectrum bounce near the
@@ -131,7 +190,7 @@ export class WaveRenderer {
     return (
       amt *
       maxUp *
-      ((spec * 0.38) + (this.level * ripple * 0.07) + (this.level * shimmer * 0.035))
+      ((spec * 0.48) + (this.level * ripple * 0.12) + (this.level * shimmer * 0.05))
     );
   }
 
@@ -161,7 +220,6 @@ export class WaveRenderer {
   private drawBars(
     t: number,
     G: Geometry,
-    A: RGB,
     src: WaveSource,
     dots: boolean,
   ) {
@@ -202,9 +260,9 @@ export class WaveRenderer {
         mir.rect(x, G.base + 2, G.bw, h * MIR);
       }
     }
-    g.fillStyle = rgba(A, 1);
+    g.fillStyle = this.ink(1);
     g.fill(pt);
-    g.fillStyle = rgba(A, 0.26);
+    g.fillStyle = this.ink(0.26);
     g.fill(pm);
     g.fillStyle = 'rgba(255,255,255,0.24)';
     g.fill(ft);
@@ -268,9 +326,15 @@ export class WaveRenderer {
     g.beginPath();
     g.rect(0, 0, G.phX, H);
     g.clip();
-    g.fillStyle = gradTop(A, 0.95, 0.35);
+    g.fillStyle =
+      this.palette.palette && this.palette.palette !== 'album'
+        ? this.ink(0.68)
+        : gradTop(A, 0.95, 0.35);
     g.fill(top);
-    g.fillStyle = gradMir(A, 0.3);
+    g.fillStyle =
+      this.palette.palette && this.palette.palette !== 'album'
+        ? this.ink(0.18)
+        : gradMir(A, 0.3);
     g.fill(mir);
     g.restore();
     g.save();
@@ -285,11 +349,11 @@ export class WaveRenderer {
     if (!src.knowsFuture) this.futureGuide(G);
   }
 
-  private drawSpectrum(t: number, G: Geometry, A: RGB, src: WaveSource) {
+  private drawSpectrum(t: number, G: Geometry, src: WaveSource) {
     const { g } = this;
     const [i0, i1] = this.visibleRange(t, G, src.length);
     const cur = t * BAR_RATE;
-    const cMid = mix(A, WHITE, 0.45);
+
     const P = {
       l: new Path2D(),
       m: new Path2D(),
@@ -328,13 +392,13 @@ export class WaveRenderer {
       }
       S.r.rect(x, G.base + 2, G.bw, (G.base - y) * MIR);
     }
-    g.fillStyle = rgba(A, 1);
+    g.fillStyle = this.ink(1);
     g.fill(P.l);
-    g.fillStyle = rgba(cMid, 0.95);
+    g.fillStyle = this.ink(0.95, 0.3);
     g.fill(P.m);
     g.fillStyle = rgba(WHITE, 0.85);
     g.fill(P.h);
-    g.fillStyle = rgba(A, 0.24);
+    g.fillStyle = this.ink(0.24);
     g.fill(P.r);
     g.fillStyle = 'rgba(255,255,255,0.26)';
     g.fill(F.l);
@@ -349,7 +413,7 @@ export class WaveRenderer {
     if (!src.knowsFuture) this.futureGuide(G);
   }
 
-  private drawLive(G: Geometry, A: RGB, live: LiveHistory, playing: boolean) {
+  private drawLive(G: Geometry, live: LiveHistory, playing: boolean) {
     const { g } = this;
     const top = new Path2D();
     const mir = new Path2D();
@@ -366,9 +430,9 @@ export class WaveRenderer {
       if (x < -G.sp) break;
       add(x, hist[hist.length - 1 - k], k + 1);
     }
-    g.fillStyle = rgba(A, 1);
+    g.fillStyle = this.ink(1);
     g.fill(top);
-    g.fillStyle = rgba(A, 0.26);
+    g.fillStyle = this.ink(0.26);
     g.fill(mir);
     this.futureGuide(G);
   }
@@ -378,7 +442,8 @@ export class WaveRenderer {
     g.fillStyle = 'rgba(255,255,255,0.12)';
     g.fillRect(0, G.base, W, 1);
     if (!f.emptyText) return;
-    g.font = '500 13px "Waveflow Pretendard", Pretendard, system-ui, sans-serif';
+    g.font =
+      '500 13px "Waveflow Pretendard", Pretendard, system-ui, sans-serif';
     g.fillStyle = 'rgba(255,255,255,0.5)';
     g.textAlign = 'center';
     g.textBaseline = 'bottom';

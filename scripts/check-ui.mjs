@@ -36,6 +36,9 @@ const result = await build({
         if (id === '\0waveflow-check')
           return `
         export { Waveflow } from ${JSON.stringify(join(plugin, 'app.ts'))};
+        export { AudioTap } from ${JSON.stringify(join(plugin, 'audio.ts'))};
+        export { WaveRenderer } from ${JSON.stringify(join(plugin, 'draw.ts'))};
+        export { AudioDynamics } from ${JSON.stringify(join(plugin, 'dynamics.ts'))};
         export { Overlay } from ${JSON.stringify(join(plugin, 'overlay.ts'))};
         export { MusicNavigation } from ${JSON.stringify(join(plugin, 'navigation.ts'))};
         export { defaultConfig } from ${JSON.stringify(join(plugin, 'types.ts'))};
@@ -76,10 +79,19 @@ const window = new Window({
 });
 const output = (Array.isArray(result) ? result[0] : result).output;
 window.eval(output.find((item) => item.type === 'chunk').code);
-const { Waveflow, Overlay, MusicNavigation, defaultConfig, style } =
-  window.WaveflowCheck;
+const {
+  Waveflow,
+  AudioTap,
+  AudioDynamics,
+  WaveRenderer,
+  Overlay,
+  MusicNavigation,
+  defaultConfig,
+  style,
+} = window.WaveflowCheck;
 const { document } = window;
 let now = 0;
+window.performance.now = () => now;
 let nextId = 0;
 const timers = new Map();
 const frames = new Map();
@@ -123,7 +135,7 @@ const key = (target, value, options = {}) => {
 const handlers = {
   togglePlay() {},
   setStyle() {},
-  nextAccent() {},
+  setAccent() {},
   nextMotion() {},
   toggleFullscreen() {},
   browse() {},
@@ -197,16 +209,18 @@ await test('native playlists and search use the current player without page relo
   navigation.destroy();
 });
 
-await test('browse, return, typing, fullscreen exit and plugin cleanup work together', async () => {
+await test('Waveflow opens by default before playback and supports browsing, returning and cleanup', async () => {
+  assert.equal(defaultConfig.enabled, true);
   const app = new Waveflow(
     { setConfig() {}, ipc: { invoke: async () => null } },
     { ...defaultConfig, cache: false },
   );
   const root = document.querySelector('.waveflow');
   const launcher = document.querySelector('.wf-launcher');
-  launcher.click();
   assert.equal(root.hidden, false);
   assert.equal(launcher.hidden, true);
+  assert.equal(document.documentElement.classList.contains('wf-open'), true);
+  assert.equal(document.activeElement, root);
   assert.equal(key(root, '/').defaultPrevented, true);
   assert.equal(root.hidden, true);
   assert.equal(launcher.hidden, false);
@@ -238,6 +252,460 @@ await test('browse, return, typing, fullscreen exit and plugin cleanup work toge
   assert.equal(document.documentElement.classList.contains('wf-open'), false);
   assert.equal(timers.size, 0);
   assert.equal(frames.size, 0);
+});
+
+await test('gapless song changes render and record on the current song timeline', () => {
+  document.body.innerHTML = '<video></video>';
+  const video = document.querySelector('video');
+  let mediaTime = 658.361179;
+  let paused = true;
+  Object.defineProperties(video, {
+    currentTime: { configurable: true, get: () => mediaTime },
+    duration: { configurable: true, get: () => 784.579567 },
+    paused: { configurable: true, get: () => paused },
+    readyState: { configurable: true, get: () => 4 },
+  });
+  let trackId = 'first-song';
+  let trackTime = 3.544875;
+  const seeks = [];
+  const app = new Waveflow(
+    { setConfig() {}, ipc: { invoke: async () => null } },
+    { ...defaultConfig, cache: false },
+  );
+  let rendered;
+  app.painter.render = (frame) => {
+    rendered = frame;
+  };
+  app.tap.attachCapture = () => true;
+  app.tap.sample = () => {
+    app.tap.rms = 0.1;
+    app.tap.bands.fill(0.01);
+    return !paused;
+  };
+  app.setApi({
+    getVideoData: () => ({ video_id: trackId }),
+    getCurrentTime: () => trackTime,
+    seekTo: (time) => {
+      seeks.push(time);
+      trackTime = time;
+    },
+  });
+  const root = document.querySelector('.waveflow');
+  const step = () => {
+    advance(20);
+    flushFrame();
+  };
+  try {
+    app.onSongInfo({ videoId: trackId, title: 'First', songDuration: 190 });
+    step();
+    assert.equal(root.querySelector('.wf-cur').textContent, '0:03');
+    assert.equal(root.querySelector('.wf-dur').textContent, '3:10');
+    assert.equal(rendered.t, trackTime);
+    paused = false;
+    step();
+    assert.equal(
+      rendered.source.has(Math.floor(trackTime * 20)),
+      true,
+      'audio must be recorded within the song, not at media time 658s',
+    );
+
+    trackId = 'next-song';
+    trackTime = 0.25;
+    mediaTime = 846.25;
+    app.onSongInfo({ videoId: trackId, title: 'Next', songDuration: 106 });
+    step();
+    assert.equal(root.querySelector('.wf-title').textContent, 'Next');
+    assert.equal(root.querySelector('.wf-cur').textContent, '0:00');
+    assert.equal(root.querySelector('.wf-dur').textContent, '1:46');
+    assert.equal(
+      rendered.source.has(5),
+      true,
+      'the next song waveform starts at its own intro',
+    );
+    assert.equal(
+      rendered.source.has(70),
+      false,
+      'the previous song waveform must not carry over',
+    );
+
+    paused = true;
+    trackTime = 3.5;
+    step();
+    key(root, 'ArrowRight');
+    key(root, 'ArrowLeft');
+    assert.deepEqual(seeks, [8.5, 3.5]);
+    app.close();
+    app.open();
+    step();
+    assert.equal(
+      rendered.t,
+      3.5,
+      'returning to Waveflow uses the song timeline',
+    );
+
+    mediaTime = 12;
+    trackTime = NaN;
+    step();
+    assert.equal(
+      root.querySelector('.wf-cur').textContent,
+      '0:12',
+      'an unavailable player time falls back to the media element',
+    );
+  } finally {
+    app.destroy();
+  }
+});
+
+await test('fluid modes, legacy styles and keyboard navigation select and persist the right mode', () => {
+  document.body.innerHTML = '';
+  const changes = [];
+  const seeks = [];
+  const app = new Waveflow(
+    {
+      setConfig: (patch) => changes.push(patch),
+      ipc: { invoke: async () => null },
+    },
+    { ...defaultConfig, cache: false },
+  );
+  app.setApi({ seekTo: (time) => seeks.push(time) });
+  const root = document.querySelector('.waveflow');
+  try {
+    assert.equal(defaultConfig.style, 'flow');
+    const modes = [
+      'flow',
+      'scope',
+      'orbit',
+      'classic',
+      'ribbon',
+      'spectrum',
+      'live',
+      'dots',
+      'vinyl',
+    ];
+    for (let i = 0; i < modes.length; i++) {
+      assert.equal(key(root, String(i + 1)).defaultPrevented, true);
+      assert.equal(root.dataset.style, modes[i]);
+      assert.equal(changes.at(-1).style, modes[i]);
+    }
+    key(root, '2');
+    const radios = [...root.querySelectorAll('[role="radio"]')];
+    assert.equal(radios[1].getAttribute('aria-checked'), 'true');
+    assert.equal(radios[1].tabIndex, 0);
+    key(radios[1], 'ArrowRight');
+    assert.equal(root.dataset.style, 'orbit');
+    assert.equal(document.activeElement, radios[2]);
+    assert.deepEqual(seeks, [], 'style arrow keys must not seek the song');
+    key(radios[2], 'ArrowRight');
+    assert.equal(root.dataset.style, 'vinyl');
+    assert.equal(radios.length, 5, 'five main styles stay directly accessible');
+    key(radios[3], 'ArrowRight');
+    assert.equal(root.dataset.style, 'particles');
+    key(radios[4], 'ArrowRight');
+    assert.equal(root.dataset.style, 'flow', 'style navigation wraps');
+    const select = root.querySelector('.wf-other-styles');
+    select.value = 'ribbon';
+    select.dispatchEvent(new window.Event('change'));
+    assert.equal(root.dataset.style, 'ribbon');
+    assert.equal(select.classList.contains('wf-selected'), true);
+    key(root, '1');
+    assert.equal(select.value, '');
+    assert.equal(select.classList.contains('wf-selected'), false);
+    for (const mode of ['particles', 'constellation', 'dot-ring', 'dots']) {
+      key(root, 'd');
+      assert.equal(root.dataset.style, mode);
+      assert.equal(changes.at(-1).style, mode);
+      assert.equal(root.querySelector('.wf-dot-styles').value, mode);
+    }
+    const palette = root.querySelector('.wf-color-select');
+    assert.equal(palette.querySelectorAll(':scope > option').length, 5);
+    for (const accent of ['album', 'aurora', 'sunset', 'ocean', 'rainbow', 'mint']) {
+      palette.value = accent;
+      palette.dispatchEvent(new window.Event('change'));
+      assert.equal(changes.at(-1).accent, accent);
+      assert.equal(root.dataset.palette, accent);
+    }
+    key(root, 'c');
+    assert.equal(palette.value, 'lilac', 'the color shortcut keeps legacy colors available');
+    key(root, 'v');
+    assert.equal(root.dataset.style, 'vinyl');
+    assert.equal(root.querySelector('canvas').getAttribute('role'), 'slider');
+    key(root, '1');
+    assert.equal(root.querySelector('canvas').hasAttribute('role'), false);
+    assert.ok(
+      !root.textContent.includes('plugins.waveflow.'),
+      'all new labels resolve',
+    );
+  } finally {
+    app.destroy();
+  }
+});
+
+await test('scope uses bounded audio samples, aligns its trace and decays during pause', () => {
+  let connected = 0;
+  const analyser = {
+    fftSize: 2048,
+    frequencyBinCount: 1024,
+    minDecibels: -100,
+    maxDecibels: -30,
+    getFloatTimeDomainData(data) {
+      for (let i = 0; i < data.length; i++)
+        data[i] = Math.sin((i * Math.PI) / 32) * 0.1;
+    },
+    getFloatFrequencyData(data) {
+      data.fill(-45);
+    },
+  };
+  const tap = new AudioTap();
+  tap.attach(
+    { sampleRate: 44100, createAnalyser: () => analyser },
+    {
+      connect() {
+        connected++;
+      },
+      disconnect() {},
+    },
+  );
+  tap.sample(true, 1 / 60);
+  assert.equal(connected, 1);
+  assert.equal(tap.waveform.length, 256);
+  assert.ok(
+    [...tap.waveform].every(
+      (value) => Number.isFinite(value) && Math.abs(value) <= 1,
+    ),
+  );
+  const amplitude = Math.max(...tap.waveform.map(Math.abs));
+  assert.ok(amplitude > 0.05, 'the scope receives the real time-domain signal');
+  tap.sample(false, 1);
+  assert.ok(Math.max(...tap.waveform.map(Math.abs)) < amplitude * 0.01);
+  tap.detach();
+});
+
+await test('fluid, vinyl and particle modes render without history, in silence and on compact canvases', () => {
+  const finite = (...values) =>
+    assert.ok(
+      values.every(Number.isFinite),
+      'canvas coordinates must stay finite',
+    );
+  class CheckedPath {
+    moveTo(...values) {
+      finite(...values);
+    }
+    lineTo(...values) {
+      finite(...values);
+    }
+    quadraticCurveTo(...values) {
+      finite(...values);
+    }
+    arc(...values) {
+      finite(...values);
+    }
+    closePath() {}
+  }
+  window.Path2D = CheckedPath;
+  let strokes = 0;
+  const gradient = () => ({
+    addColorStop(offset) {
+      assert.ok(offset >= 0 && offset <= 1);
+    },
+  });
+  const context = {
+    setTransform() {},
+    clearRect: finite,
+    fillRect: finite,
+    save() {},
+    restore() {},
+    beginPath() {},
+    clip() {},
+    fill() {
+      strokes++;
+    },
+    fillText() {},
+    rect: finite,
+    strokeRect: finite,
+    translate: finite,
+    rotate: finite,
+    drawImage() {},
+    arc: finite,
+    moveTo: finite,
+    lineTo: finite,
+    stroke() {
+      strokes++;
+    },
+    createLinearGradient: gradient,
+    createRadialGradient: gradient,
+  };
+  const original = window.HTMLCanvasElement.prototype.getContext;
+  window.HTMLCanvasElement.prototype.getContext = () => context;
+  try {
+    for (const width of [1, 390, 1440]) {
+      const canvas = document.createElement('canvas');
+      Object.defineProperties(canvas, {
+        clientWidth: { value: width },
+        clientHeight: { value: 844 },
+      });
+      const painter = new WaveRenderer(canvas);
+      painter.resize();
+      for (const mode of [
+        'flow',
+        'scope',
+        'orbit',
+        'vinyl',
+        'particles',
+        'constellation',
+        'dot-ring',
+      ]) {
+        for (const playing of [false, true]) {
+          const before = strokes;
+          painter.render(
+            {
+              t: 0,
+              source: null,
+              live: { values: [], acc: 0 },
+              style: mode,
+              accent: [135, 220, 193],
+              palette: playing ? 'rainbow' : 'aurora',
+              spacing: 5,
+              motion: playing ? 1 : 0,
+              level: playing ? 1 : 0,
+              bounce: new Float32Array(72).fill(playing ? 1 : 0),
+              waveform: new Float32Array(256).fill(playing ? 0.5 : 0),
+              playing,
+              emptyText: 'Play a song',
+            },
+            1 / 60,
+          );
+          assert.ok(
+            strokes > before,
+            `${mode} should draw without cached audio`,
+          );
+        }
+      }
+    }
+  } finally {
+    window.HTMLCanvasElement.prototype.getContext = original;
+  }
+});
+
+await test('bass transients pulse, sustained audio settles, and Motion Off stops decorative travel', () => {
+  const audio = new AudioDynamics();
+  const frame = {
+    level: 0.8,
+    bounce: new Float32Array(72).fill(0.8),
+    playing: true,
+    motion: 1,
+  };
+  audio.update(frame, 1 / 60);
+  assert.ok(
+    audio.pulse > 0.5,
+    'a rising bass transient produces a visible impulse',
+  );
+  for (let i = 0; i < 180; i++) audio.update(frame, 1 / 60);
+  assert.ok(
+    audio.pulse < 0.01,
+    'constant loudness does not pretend to be a beat',
+  );
+  const phase = audio.phase;
+  audio.update({ ...frame, motion: 0 }, 0.1);
+  assert.equal(audio.phase, phase);
+  audio.update(
+    { ...frame, playing: false, bounce: new Float32Array(72), level: 0 },
+    0.1,
+  );
+  assert.equal(audio.phase, phase, 'pause freezes decorative motion');
+});
+
+await test('turning the LP seeks live, throttles the player, commits on release and cleans up capture', () => {
+  document.body.innerHTML = '<video></video>';
+  const video = document.querySelector('video');
+  Object.defineProperties(video, {
+    duration: { get: () => 240 },
+    paused: { get: () => false },
+    readyState: { get: () => 4 },
+  });
+  let trackTime = 90;
+  let playChanges = 0;
+  const seeks = [];
+  const app = new Waveflow(
+    { setConfig() {}, ipc: { invoke: async () => null } },
+    { ...defaultConfig, style: 'vinyl', cache: false },
+  );
+  app.setApi({
+    getCurrentTime: () => trackTime,
+    seekTo: (time) => {
+      trackTime = time;
+      seeks.push(time);
+    },
+    playVideo: () => playChanges++,
+    pauseVideo: () => playChanges++,
+  });
+  const root = document.querySelector('.waveflow');
+  const canvas = root.querySelector('canvas');
+  const captured = new Set();
+  canvas.setPointerCapture = (id) => captured.add(id);
+  canvas.hasPointerCapture = (id) => captured.has(id);
+  canvas.releasePointerCapture = (id) => captured.delete(id);
+  Object.defineProperties(canvas, {
+    clientWidth: { value: 1000 },
+    clientHeight: { value: 800 },
+  });
+  app.painter.resize();
+  const { cx, cy, radius } = app.painter.recordGeometry();
+  const pointer = (type, angle, id = 1, distance = radius * 0.7) =>
+    canvas.dispatchEvent(
+      new window.PointerEvent(type, {
+        pointerId: id,
+        button: 0,
+        bubbles: true,
+        cancelable: true,
+        clientX: cx + Math.cos(angle) * distance,
+        clientY: cy + Math.sin(angle) * distance,
+      }),
+    );
+  try {
+    pointer('pointerdown', 0, 1, radius * 1.4);
+    assert.equal(app.drag, null, 'the background is not a record gesture');
+    pointer('pointerdown', Math.PI);
+    assert.equal(
+      app.drag,
+      null,
+      'the sleeve occludes the record and is not a turntable target',
+    );
+    pointer('pointerdown', 0);
+    assert.equal(root.classList.contains('wf-scrubbing'), true);
+    assert.equal(captured.has(1), true);
+    pointer('pointermove', Math.PI / 2, 2);
+    assert.deepEqual(
+      seeks,
+      [],
+      'another finger must not take over the platter',
+    );
+    pointer('pointermove', Math.PI / 2);
+    assert.ok(Math.abs(seeks[0] - 97.5) < 1e-8);
+    pointer('pointermove', Math.PI);
+    assert.equal(
+      seeks.length,
+      1,
+      'rapid pointer input does not flood the player API',
+    );
+    assert.equal(root.querySelector('.wf-cur').textContent, '1:45');
+    pointer('pointerup', Math.PI);
+    assert.ok(Math.abs(seeks.at(-1) - 105) < 1e-8);
+    assert.equal(captured.size, 0);
+    assert.equal(root.classList.contains('wf-scrubbing'), false);
+    assert.equal(playChanges, 0, 'scrubbing preserves the playback state');
+    pointer('pointerdown', 0);
+    advance(100);
+    pointer('pointermove', -Math.PI / 2);
+    pointer('pointercancel', -Math.PI / 2);
+    assert.equal(app.drag, null);
+    assert.equal(captured.size, 0);
+    pointer('pointerdown', 0);
+    key(root, '1');
+    assert.equal(app.drag, null, 'switching styles releases the platter');
+    assert.equal(captured.size, 0);
+  } finally {
+    app.destroy();
+  }
 });
 
 await window.happyDOM.close();

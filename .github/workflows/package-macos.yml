@@ -1,0 +1,67 @@
+name: Build macOS installer and feature screenshots
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: waveflow-macos-main
+  cancel-in-progress: false
+
+jobs:
+  package:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.28.11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify behavior and types
+        run: pnpm test && pnpm typecheck
+      - name: Capture the real renderer with demo audio
+        run: pnpm screenshots
+      - name: Build Apple Silicon installer
+        run: pnpm dist:mac:arm64
+      - name: Verify and copy installer to repository root
+        run: |
+          codesign --verify --deep --strict pack/mac-arm64/Waveflow.app
+          hdiutil verify pack/Waveflow-3.12.0-arm64.dmg
+          cp pack/Waveflow-3.12.0-arm64.dmg Waveflow-3.12.0-arm64.dmg
+          shasum -a 256 Waveflow-3.12.0-arm64.dmg > Waveflow-3.12.0-arm64.dmg.sha256
+      - name: Upload installer and screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: Waveflow-macos-arm64
+          path: |
+            Waveflow-3.12.0-arm64.dmg
+            Waveflow-3.12.0-arm64.dmg.sha256
+            docs/screenshots/
+          compression-level: 0
+      - name: Commit generated screenshots and installer to main
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]; then
+            echo 'main changed during the build; artifacts are available without overwriting newer work.'
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if [ "$(stat -f %z Waveflow-3.12.0-arm64.dmg)" -gt 99000000 ]; then
+            git lfs install --local
+            git lfs track '/Waveflow-3.12.0-arm64.dmg'
+          fi
+          git add .gitattributes docs/screenshots/ Waveflow-3.12.0-arm64.dmg Waveflow-3.12.0-arm64.dmg.sha256
+          if ! git diff --cached --quiet; then
+            git commit -m 'build: refresh feature screenshots and Apple Silicon installer'
+            git push origin HEAD:main
+          fi

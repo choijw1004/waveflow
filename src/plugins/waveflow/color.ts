@@ -28,7 +28,7 @@ export const liftColor = ([r, g, b]: RGB): RGB => {
   if (s < 0.12) return [236, 234, 230];
   s = Math.max(s, 0.62);
   l = Math.min(0.7, Math.max(0.56, l));
-  const q = l < 0.5 ? l * (1 + s) : l + s - (l * s);
+  const q = l < 0.5 ? l * (1 + s) : (l + s) - (l * s);
   const p = (2 * l) - q;
   const f = (t: number) => {
     t = (t + 1) % 1;

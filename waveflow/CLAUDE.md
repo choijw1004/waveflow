@@ -6,6 +6,9 @@
 - 레포: `waveflow` (GitHub: choijw1004)
 - 설명: Your music, flowing across the screen. A fullscreen, SoundCloud-style waveform visualizer for YouTube Music.
 - 디자인 기준: `reference/waveflow-demo.html` (브라우저에서 바로 열어 볼 수 있는 완성 데모. 그리기 로직의 원본)
+- 새 비주얼 기준: 루트 `references/`의 이미지 3종. `fluid.ts`의 Flow(반투명 물결 면), Scope(원형 그리드와 실제 오디오 곡선), Orbit(일렁이는 얇은 고리). 기본 스타일은 Flow. 실시간 분석 데이터를 사용하며 기존 타임라인 파형은 More styles에 유지.
+- Vinyl의 정확한 레퍼런스는 **`references/image copy 4.png`**. 컬러 파형이 그려진 정사각형 재킷 뒤에서 검은 LP가 오른쪽에 반쯤 드러나는 겹침 구성을 유지. 공통 `recordGeometry()`의 sleeve/exposedX를 렌더링과 히트 테스트에 함께 사용, 드러난 LP만 잡아서 회전. 한 바퀴는 30초 탐색(시계 방향 앞으로), ±π 경계를 넘어 반복 회전 가능. 80ms 간격 실시간 seek와 놓을 때 최종 seek, pointer capture/cancel 정리.
+- `particles.ts`: Stardust(흐르는 입자), Constellation(별자리), Dot Halo(일곱 겹 도트 링). 기존 Dots까지 Dot styles에서 선택. `dynamics.ts`가 실제 저음 상승으로 맥동을 만들고, 빠른 attack / 부드러운 release와 Motion Off·reduced-motion을 처리.
 
 ## 결정된 것
 
@@ -47,7 +50,7 @@ Electron 42 · TypeScript · electron-vite / Vite · SolidJS · pnpm · electron
 - 재생 중 3초간 입력이 없으면 제목·커버·탐색 버튼·하단 컨트롤이 함께 페이드아웃. 마우스·키보드 입력 시 다시 표시. 일시정지 중이나 키보드로 컨트롤에 포커스한 동안에는 표시 유지
 - 상단 Search / Playlists / YouTube Music으로 앱을 종료하지 않고 원래 유튜브 뮤직 화면 탐색. 탐색 화면에는 Back to Waveflow 버튼 상시 표시. 재생·파형 수집은 계속됨
 - Electron의 기존 상단 창 드래그 영역이 오버레이 클릭을 가로챌 수 있어 `.waveflow`와 버튼은 `-webkit-app-region: no-drag`, 열린 동안 원래 navbar의 드래그 영역도 해제. 이 문제는 브라우저 DOM 모의 검사로 확인되지 않으므로 설치 앱에서 상단 버튼 마우스 클릭을 검증해야 함.
-- 단축키: Space 재생, 1–5 스타일, C 색상, M 움직임, F 전체화면, / 검색, P 재생목록, W 탐색/비주얼라이저 전환, Esc 전체화면 해제/탐색, ←→ 5초, +/− 확대
+- 단축키: Space 재생, 1–3 Flow/Scope/Orbit, 4–8 Classic/Ribbon/Spectrum/Live/Dots, 9 또는 V 주파수+LP, D 도트 스타일 순환, C 색상, M 움직임, F 전체화면, / 검색, P 재생목록, W 탐색/비주얼라이저 전환, Esc 전체화면 해제/탐색, ←→ 5초, +/− 확대
 - 글꼴: 번들에 포함한 Pretendard Variable (`assets/`, SIL OFL). UI 문구는 Pear 언어 설정과 관계없이 영어
 
 ## 데모와 달라지는 점 (중요)

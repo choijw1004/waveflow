@@ -1,5 +1,17 @@
+import { palettePreview } from './palette';
 import { t } from './strings';
-import { STYLES, type RGB, type WaveStyle } from './types';
+import {
+  ACCENTS,
+  PRIMARY_ACCENTS,
+  DOT_STYLES,
+  PRIMARY_STYLES,
+  STYLE_SHORTCUTS,
+  STYLES,
+  isDotStyle,
+  type AccentName,
+  type RGB,
+  type WaveStyle,
+} from './types';
 
 import type { BrowseDestination } from './navigation';
 
@@ -38,7 +50,7 @@ export const formatTime = (s: number) => {
 export type OverlayHandlers = {
   togglePlay: () => void;
   setStyle: (style: WaveStyle) => void;
-  nextAccent: () => void;
+  setAccent: (accent: AccentName) => void;
   nextMotion: () => void;
   toggleFullscreen: () => void;
   browse: (destination: BrowseDestination) => void;
@@ -61,11 +73,14 @@ export class Overlay {
   private readonly cur: HTMLSpanElement;
   private readonly dur: HTMLSpanElement;
   private readonly styleButtons: HTMLButtonElement[] = [];
-  private readonly colorName: HTMLSpanElement;
+  private readonly otherStyles: HTMLSelectElement;
+  private readonly dotStyles: HTMLSelectElement;
+  private readonly colorSelect: HTMLSelectElement;
   private readonly motionName: HTMLSpanElement;
   private readonly fsBtn: HTMLButtonElement;
 
   private playing = false;
+  private scrubbing = false;
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
   private lastCur = '';
   private lastDur = '';
@@ -131,29 +146,116 @@ export class Overlay {
       'aria-label',
       t('plugins.waveflow.overlay.styles-label'),
     );
-    STYLES.forEach((style, i) => {
+    const previews = {
+      flow: 'M2 12C5 12 4 5 7 5s2 14 5 14 2-14 5-14 2 7 5 7',
+      scope: 'M2 12h3c2 0 1-7 4-7s3 14 6 14 1-7 4-7h3',
+      orbit: 'M20 12c0 5-3 8-8 8s-8-4-8-8 4-8 8-8 8 3 8 8Z',
+      particles:
+        'M4 6h.01M12 3h.01M20 8h.01M7 14h.01M16 13h.01M11 21h.01M21 20h.01M3 21h.01',
+      vinyl:
+        'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM6 12a6 6 0 0 1 6-6m0 12a6 6 0 0 0 6-6',
+    };
+    PRIMARY_STYLES.forEach((style, i) => {
       const b = el('button', undefined, styles);
       b.type = 'button';
       b.setAttribute('role', 'radio');
-      el('kbd', undefined, b).textContent = String(i + 1);
+      const shortcutIndex = STYLE_SHORTCUTS.indexOf(style);
+      const shortcut = shortcutIndex < 0 ? 'D' : String(shortcutIndex + 1);
+      b.setAttribute('aria-keyshortcuts', shortcut);
+      b.title = t(`plugins.waveflow.visuals.${style}`);
+      b.append(icon(previews[style]));
       el('span', undefined, b).textContent = t(
         `plugins.waveflow.styles.${style}`,
       );
+      el('kbd', undefined, b).textContent = shortcut;
       b.addEventListener('click', () => handlers.setStyle(style));
+      b.addEventListener('keydown', (event) => {
+        const direction =
+          event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+        if (!direction) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const next =
+          (i + direction + PRIMARY_STYLES.length) % PRIMARY_STYLES.length;
+        handlers.setStyle(PRIMARY_STYLES[next]);
+        this.styleButtons[next].focus();
+      });
       this.styleButtons.push(b);
+    });
+
+    this.dotStyles = el('select', 'wf-chip wf-dot-styles', dock);
+    this.dotStyles.setAttribute(
+      'aria-label',
+      t('plugins.waveflow.overlay.dot-styles'),
+    );
+    const dotPlaceholder = el('option', undefined, this.dotStyles);
+    dotPlaceholder.value = '';
+    dotPlaceholder.disabled = true;
+    dotPlaceholder.textContent = t('plugins.waveflow.overlay.dot-styles');
+    for (const style of DOT_STYLES) {
+      const option = el('option', undefined, this.dotStyles);
+      option.value = style;
+      option.textContent = t(`plugins.waveflow.styles.${style}`);
+    }
+    this.dotStyles.addEventListener('change', () => {
+      const style = DOT_STYLES.find((style) => style === this.dotStyles.value);
+      if (style) handlers.setStyle(style);
+    });
+
+    this.otherStyles = el('select', 'wf-chip wf-other-styles', dock);
+    this.otherStyles.setAttribute(
+      'aria-label',
+      t('plugins.waveflow.overlay.other-styles'),
+    );
+    el('option', undefined, this.otherStyles).textContent = t(
+      'plugins.waveflow.overlay.other-styles',
+    );
+    this.otherStyles.options[0].value = '';
+    this.otherStyles.options[0].disabled = true;
+    for (const style of STYLES.filter(
+      (style) =>
+        !(PRIMARY_STYLES as readonly string[]).includes(style) &&
+        !isDotStyle(style),
+    )) {
+      const option = el('option', undefined, this.otherStyles);
+      option.value = style;
+      option.textContent = `${t(`plugins.waveflow.styles.${style}`)} · ${STYLES.indexOf(style) + 1}`;
+    }
+    this.otherStyles.addEventListener('change', () => {
+      const style = STYLES.find((style) => style === this.otherStyles.value);
+      if (style) handlers.setStyle(style);
     });
 
     el('div', 'wf-spacer', dock);
 
-    const colorBtn = el('button', 'wf-chip', dock);
-    colorBtn.type = 'button';
-    colorBtn.setAttribute(
+    const colorControl = el('label', 'wf-chip wf-palette', dock);
+    el('span', 'wf-swatch', colorControl);
+    this.colorSelect = el('select', 'wf-color-select', colorControl);
+    this.colorSelect.setAttribute(
       'aria-label',
       t('plugins.waveflow.overlay.color-label'),
     );
-    el('span', 'wf-swatch', colorBtn);
-    this.colorName = el('span', undefined, colorBtn);
-    colorBtn.addEventListener('click', handlers.nextAccent);
+    for (const accent of PRIMARY_ACCENTS) {
+      const option = el('option', undefined, this.colorSelect);
+      option.value = accent;
+      option.textContent = t(`plugins.waveflow.colors.${accent}`);
+    }
+    const solid = el('optgroup', undefined, this.colorSelect);
+    solid.label = t('plugins.waveflow.overlay.solid-colors');
+    for (const accent of ACCENTS.filter(
+      (accent) => !(PRIMARY_ACCENTS as readonly string[]).includes(accent),
+    )) {
+      const option = el('option');
+      option.value = accent;
+      option.textContent = t(`plugins.waveflow.colors.${accent}`);
+      solid.append(option);
+    }
+    this.colorSelect.addEventListener('change', () => {
+      const accent = ACCENTS.find(
+        (accent) => accent === this.colorSelect.value,
+      );
+      if (accent) handlers.setAccent(accent);
+    });
 
     const motionBtn = el('button', 'wf-chip', dock);
     motionBtn.type = 'button';
@@ -182,7 +284,11 @@ export class Overlay {
     }
     root.addEventListener('keydown', (event) => {
       if (event.key !== 'Tab') return;
-      const buttons = [...root.querySelectorAll<HTMLButtonElement>('button')];
+      const buttons = [
+        ...root.querySelectorAll<HTMLButtonElement | HTMLSelectElement>(
+          'button:not([tabindex="-1"]), select, canvas[tabindex="0"]',
+        ),
+      ];
       const first = buttons[0];
       const last = buttons.at(-1);
       if (
@@ -230,7 +336,7 @@ export class Overlay {
     const cl = this.root.classList;
     cl.remove('wf-idle');
     clearTimeout(this.idleTimer);
-    if (this.playing && this.open) {
+    if (this.playing && this.open && !this.scrubbing) {
       this.idleTimer = setTimeout(() => {
         if (!this.ui.querySelector(':focus-visible')) cl.add('wf-idle');
       }, IDLE_MS);
@@ -281,17 +387,75 @@ export class Overlay {
     const d = formatTime(dur);
     if (c !== this.lastCur) this.cur.textContent = this.lastCur = c;
     if (d !== this.lastDur) this.dur.textContent = this.lastDur = d;
+    if (this.root.dataset.style === 'vinyl') {
+      this.canvas.setAttribute('aria-valuemax', String(Math.max(0, dur)));
+      this.canvas.setAttribute(
+        'aria-valuenow',
+        String(Math.max(0, Math.min(dur, cur))),
+      );
+      this.canvas.setAttribute('aria-valuetext', `${c} / ${d}`);
+    }
+  }
+
+  setScrubbing(active: boolean) {
+    this.scrubbing = active;
+    this.root.classList.toggle('wf-scrubbing', active);
+    this.poke();
   }
 
   setStyle(style: WaveStyle) {
-    this.styleButtons.forEach((b, i) =>
-      b.setAttribute('aria-checked', String(STYLES[i] === style)),
-    );
+    this.root.dataset.style = style;
+    this.styleButtons.forEach((b, i) => {
+      const selected = PRIMARY_STYLES[i] === style;
+      b.setAttribute('aria-checked', String(selected));
+      b.tabIndex =
+        selected ||
+        (!(PRIMARY_STYLES as readonly string[]).includes(style) && i === 0)
+          ? 0
+          : -1;
+    });
+    const other =
+      !(PRIMARY_STYLES as readonly string[]).includes(style) &&
+      !isDotStyle(style);
+    this.otherStyles.value = other ? style : '';
+    this.otherStyles.classList.toggle('wf-selected', other);
+    this.dotStyles.value = isDotStyle(style) ? style : '';
+    this.dotStyles.classList.toggle('wf-selected', isDotStyle(style));
+    if (style === 'vinyl') {
+      this.canvas.title = t('plugins.waveflow.overlay.record-hint');
+      this.canvas.tabIndex = 0;
+      this.canvas.setAttribute('role', 'slider');
+      this.canvas.setAttribute(
+        'aria-label',
+        t('plugins.waveflow.overlay.record-control'),
+      );
+      this.canvas.setAttribute('aria-valuemin', '0');
+      this.canvas.setAttribute('aria-valuemax', '0');
+      this.canvas.setAttribute('aria-valuenow', '0');
+    } else {
+      this.canvas.removeAttribute('title');
+      this.canvas.removeAttribute('tabindex');
+      for (const attr of [
+        'role',
+        'aria-valuemin',
+        'aria-valuemax',
+        'aria-valuenow',
+        'aria-valuetext',
+      ])
+        this.canvas.removeAttribute(attr);
+      this.canvas.setAttribute(
+        'aria-label',
+        t('plugins.waveflow.overlay.aria'),
+      );
+    }
   }
 
-  setAccent(name: string, color: RGB) {
+  setAccent(name: string, color: RGB, accent: AccentName = 'album') {
     this.root.style.setProperty('--wf-accent', `rgb(${color.join(',')})`);
-    this.colorName.textContent = name;
+    this.colorSelect.value = accent;
+    this.colorSelect.title = name;
+    this.root.dataset.palette = accent;
+    this.root.style.setProperty('--wf-swatch', palettePreview(accent, color));
   }
 
   setGlow(color: RGB | null) {
