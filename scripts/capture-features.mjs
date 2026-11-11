@@ -116,12 +116,12 @@ try {
   ];
   for (const capture of captures) {
     await page.evaluate(({style,palette,immersive,scrubbing}) => window.capture(style,palette,immersive,scrubbing), capture);
-    await page.screenshot({ path: join(destination, capture.name + '.jpg'), type: 'jpeg', quality: 88 });
+    await page.screenshot({ path: join(destination, capture.name + '.jpg'), type: 'jpeg', quality: 88, animations: 'disabled' });
   }
   // Check the same controls at a narrow window before shipping the desktop app.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => window.capture('flow', 'rainbow'));
-  await page.screenshot({ path: join(destination, 'compact.jpg'), type: 'jpeg', quality: 88 });
+  await page.screenshot({ path: join(destination, 'compact.jpg'), type: 'jpeg', quality: 88, animations: 'disabled' });
   const clipped = await page.locator('.wf-dock button, .wf-dock select, .wf-navigation button').evaluateAll(nodes => nodes.filter(node => { const r = node.getBoundingClientRect(); return r.left < 0 || r.right > innerWidth || r.bottom > innerHeight; }).map(node => node.textContent));
   if (clipped.length) throw new Error('Controls outside compact viewport: ' + clipped.join(', '));
   if (errors.length) throw new Error(errors.join('\n'));
